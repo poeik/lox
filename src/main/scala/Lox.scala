@@ -1,3 +1,9 @@
+import error.hadError
+import expr.Expr
+import expr.prettyAst
+import scanner.{Scanner, ScannerMutable}
+import token.{Token, TokenType}
+
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.io.InputStreamReader
@@ -5,17 +11,16 @@ import java.io.BufferedReader
 import scala.util.Using
 import java.nio.charset.Charset
 
-var hadError: Boolean = false
 
-@main def main(args: String*): Unit =
-  args.toList match
-     case Nil =>
-       runPrompt()
-     case script :: Nil =>
-       runFile(script)
-     case _ =>
-       println("Usage: jlox [script]")
-       System.exit(64)
+//@main def main(args: String*): Unit =
+//  args.toList match
+//     case Nil =>
+//       runPrompt()
+//     case script :: Nil =>
+//       runFile(script)
+//     case _ =>
+//       println("Usage: jlox [script]")
+//       System.exit(64)
 
 def runFile(path: String): Unit =
    val content = Files.readString(Paths.get(path), Charset.defaultCharset())
@@ -45,9 +50,16 @@ def run(source: String): Unit =
   val tokens: Seq[Token] = Scanner.scanTokens(source)
   tokens.foreach(println(_))
 
-def error(line: Int, message: String): Unit =
-  report(line, "", message)
+@main def main(args: String*): Unit = 
+  val expression: Expr = Expr.Binary(
+    Expr.Unary(
+      Token(TokenType.MINUS, "-", 1),
+      Expr.Literal(Some(123))
+    ),
+    Token(TokenType.STAR, "*", 1),
+    Expr.Grouping(
+      Expr.Literal(Some(45.67))
+    )
+  )
 
-def report(line: Int, where: String, message: String): Unit =
-   println("[line " + line + "] Error" + where + ": " + message)
-   hadError = true
+  println(prettyAst(expression))

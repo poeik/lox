@@ -1,6 +1,10 @@
+package scanner
+
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import TokenType.*
+import token.TokenType.*
+import token.{Token, TokenType, keywords}
+import error.error
 
 class ScannerMutable(private val source: String):
    private val tokens: mutable.ListBuffer[Token] = ListBuffer()

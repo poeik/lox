@@ -1,4 +1,8 @@
-import TokenType.*
+package scanner
+
+import token.{Token, TokenType, keywords}
+import token.TokenType.*
+import error.error
 
 import scala.annotation.tailrec
 

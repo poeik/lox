@@ -1,4 +1,6 @@
-import TokenType._
+package token
+
+import token.TokenType.*
 
 enum TokenType:
    // Single-character tokens

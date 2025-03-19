@@ -12,15 +12,15 @@ import scala.util.Using
 import java.nio.charset.Charset
 
 
-//@main def main(args: String*): Unit =
-//  args.toList match
-//     case Nil =>
-//       runPrompt()
-//     case script :: Nil =>
-//       runFile(script)
-//     case _ =>
-//       println("Usage: jlox [script]")
-//       System.exit(64)
+@main def main(args: String*): Unit =
+  args.toList match
+     case Nil =>
+       runPrompt()
+     case script :: Nil =>
+       runFile(script)
+     case _ =>
+       println("Usage: jlox [script]")
+       System.exit(64)
 
 def runFile(path: String): Unit =
    val content = Files.readString(Paths.get(path), Charset.defaultCharset())
@@ -50,7 +50,7 @@ def run(source: String): Unit =
   val tokens: Seq[Token] = Scanner.scanTokens(source)
   tokens.foreach(println(_))
 
-@main def main(args: String*): Unit = 
+def samplePretty(args: String*): Unit =
   val expression: Expr = Expr.Binary(
     Expr.Unary(
       Token(TokenType.MINUS, "-", 1),

@@ -1,7 +1,9 @@
 import error.hadError
-import expr.{Expr, PrintAstVisitor, Visitor}
-import scanner.{Scanner, ScannerMutable}
-import token.{Token, TokenType}
+import expr.{ Expr, PrintAstVisitor, Visitor }
+import parser.Parser
+import scanner.{ Scanner, ScannerMutable }
+import token.TokenType.EOF
+import token.{ Token, TokenType }
 
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -9,7 +11,6 @@ import java.io.InputStreamReader
 import java.io.BufferedReader
 import scala.util.Using
 import java.nio.charset.Charset
-
 
 @main def main(args: String*): Unit =
   args.toList match
@@ -41,24 +42,29 @@ def runPrompt(): Unit =
   }
 
 def runMutable(source: String): Unit =
-  val scanner            = new ScannerMutable(source)
-  val tokens: Seq[Token] = scanner.scanTokens()
-  tokens.foreach(println(_))
+   val scanner            = new ScannerMutable(source)
+   val tokens: Seq[Token] = scanner.scanTokens()
+   tokens.foreach(println(_))
 
 def run(source: String): Unit =
-  val tokens: Seq[Token] = Scanner.scanTokens(source)
-  tokens.foreach(println(_))
+   val tokens: Seq[Token] = Scanner.scanTokens(source)
+   val parser             = new Parser(tokens)
+   val expression         = parser.parse()
 
-def samplePretty(): Unit =
-  val expression: Expr = Expr.Binary(
-    Expr.Unary(
-      Token(TokenType.MINUS, "-", 1),
-      Expr.Literal(Some(123))
-    ),
-    Token(TokenType.STAR, "*", 1),
-    Expr.Grouping(
-      Expr.Literal(Some(45.67))
-    )
-  )
+   if hadError then return
+   else println(Visitor.accept(expression, PrintAstVisitor))
+   tokens.foreach(println(_))
 
-  println(Visitor.accept(expression, PrintAstVisitor))
+//def samplePretty(): Unit =
+//   val expression: Expr = Expr.Binary(
+//     Expr.Unary(
+//       Token(TokenType.MINUS, "-", 1),
+//       Expr.Literal(Some(123))
+//     ),
+//     Token(TokenType.STAR, "*", 1),
+//     Expr.Grouping(
+//       Expr.Literal(Some(45.67))
+//     )
+//   )
+//
+//   println(Visitor.accept(expression, PrintAstVisitor))

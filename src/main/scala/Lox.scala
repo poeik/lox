@@ -1,6 +1,5 @@
 import error.hadError
-import expr.Expr
-import expr.prettyAst
+import expr.{Expr, PrintAstVisitor, Visitor}
 import scanner.{Scanner, ScannerMutable}
 import token.{Token, TokenType}
 
@@ -50,7 +49,7 @@ def run(source: String): Unit =
   val tokens: Seq[Token] = Scanner.scanTokens(source)
   tokens.foreach(println(_))
 
-def samplePretty(args: String*): Unit =
+def samplePretty(): Unit =
   val expression: Expr = Expr.Binary(
     Expr.Unary(
       Token(TokenType.MINUS, "-", 1),
@@ -62,4 +61,4 @@ def samplePretty(args: String*): Unit =
     )
   )
 
-  println(prettyAst(expression))
+  println(Visitor.accept(expression, PrintAstVisitor))

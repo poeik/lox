@@ -1,5 +1,5 @@
-import error.hadError
-import expr.{ Expr, PrintAstVisitor, Visitor }
+import error.{ hadError, hadRuntimeError }
+import expr.{ Expr, Interpreter, Visitor }
 import parser.Parser
 import scanner.{ Scanner, ScannerMutable }
 import token.TokenType.EOF
@@ -26,6 +26,7 @@ def runFile(path: String): Unit =
    val content = Files.readString(Paths.get(path), Charset.defaultCharset())
    run(content)
    if (hadError) System.exit(65)
+   if (hadRuntimeError) System.exit(70)
 
 def runPrompt(): Unit =
   Using.resource(new BufferedReader(InputStreamReader(System.in))) { reader =>
@@ -52,19 +53,4 @@ def run(source: String): Unit =
    val expression         = parser.parse()
 
    if hadError then return
-   else println(Visitor.accept(expression, PrintAstVisitor))
-   tokens.foreach(println(_))
-
-//def samplePretty(): Unit =
-//   val expression: Expr = Expr.Binary(
-//     Expr.Unary(
-//       Token(TokenType.MINUS, "-", 1),
-//       Expr.Literal(Some(123))
-//     ),
-//     Token(TokenType.STAR, "*", 1),
-//     Expr.Grouping(
-//       Expr.Literal(Some(45.67))
-//     )
-//   )
-//
-//   println(Visitor.accept(expression, PrintAstVisitor))
+   else Interpreter.interpret(expression)

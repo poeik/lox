@@ -8,7 +8,7 @@ object PrintAstVisitor extends Visitor[String]:
      paren("group", g.expr)
 
    override def visitLiteral[B](l: Expr.Literal[B]): String =
-     l.value.map(_.toString).getOrElse("nil")
+     l.value.toString
 
    override def visitUnary(l: Expr.Unary): String =
      paren(l.operator.lexeme, l.right)

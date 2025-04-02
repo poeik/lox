@@ -22,5 +22,4 @@ def report(line: Int, where: String, message: String): Unit =
    println("[line " + line + "] Error" + where + ": " + message)
    hadError = true
 
-class RuntimeError(val token: Token, message: String)
-    extends RuntimeException(message)
+case class RuntimeError(token: Token, message: String) extends RuntimeException(message)

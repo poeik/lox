@@ -1,9 +1,9 @@
 package parser
 
 import expr.Expr
-import expr.Expr.{Binary, Grouping, Literal, Unary}
+import expr.Expr.{ Binary, Grouping, Literal, Unary }
 import token.TokenType.*
-import token.{Token, TokenType}
+import token.{ Token, TokenType }
 import error as reporting
 
 import scala.util.boundary
@@ -14,11 +14,8 @@ class Parser(private val tokens: Seq[Token]) {
   private var current = 0
 
   def parse(): Expr =
-    try {
-      expression()
-    } catch
-      case error: ParseError => null
-
+    try expression()
+    catch case error: ParseError => null
 
   private def expression(): Expr = equality()
 
@@ -71,17 +68,17 @@ class Parser(private val tokens: Seq[Token]) {
 
   private def primary(): Expr =
      val res = peek().tokenType match
-        case FALSE     => Literal(Some(false))
-        case TRUE      => Literal(Some(true))
-        case NUMBER(v) => Literal(Some(v))
-        case STRING(v) => Literal(Some(v))
-        case NIL =>       Literal(None)
+        case FALSE     => Literal(false)
+        case TRUE      => Literal(true)
+        case NUMBER(v) => Literal(v)
+        case STRING(v) => Literal(v)
+        case NIL       => Literal(null)
         case LEFT_PAREN =>
           advance()
           val expr = expression()
           consume(RIGHT_PAREN, "Expect ')' after expression.")
           Grouping(expr)
-        case _  =>
+        case _ =>
           throw error(peek(), "Expect expression.")
 
      advance()
@@ -89,11 +86,11 @@ class Parser(private val tokens: Seq[Token]) {
 
   private def `match`(types: TokenType*): Boolean =
     boundary:
-     for t <- types do
-        if (check(t))
-           advance()
-           boundary.break(true)
-     false
+       for t <- types do
+          if (check(t))
+             advance()
+             boundary.break(true)
+       false
 
   private def previous(): Token = tokens(current - 1)
 

@@ -1,10 +1,12 @@
 package parser
 
-import expr.Expr
-import expr.Expr.{ Binary, Grouping, Literal, Unary }
+import expr.{Expr, Lit}
+import expr.Expr.{Binary, Grouping, Literal, Unary}
 import token.TokenType.*
-import token.{ Token, TokenType }
+import token.{Token, TokenType}
 import error as reporting
+
+import expr.Lit.{Bool, Number, Str}
 
 import scala.util.boundary
 
@@ -68,11 +70,11 @@ class Parser(private val tokens: Seq[Token]) {
 
   private def primary(): Expr =
      val res = peek().tokenType match
-        case FALSE     => Literal(false)
-        case TRUE      => Literal(true)
-        case NUMBER(v) => Literal(v)
-        case STRING(v) => Literal(v)
-        case NIL       => Literal(null)
+        case FALSE     => Literal(Lit.Bool(false))
+        case TRUE      => Literal(Lit.Bool(true))
+        case NUMBER(v) => Literal(Lit.Number(v))
+        case STRING(v) => Literal(Lit.Str(v))
+        case NIL       => Literal(Lit.Nil)
         case LEFT_PAREN =>
           advance()
           val expr = expression()

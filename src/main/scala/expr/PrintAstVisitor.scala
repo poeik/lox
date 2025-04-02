@@ -7,7 +7,7 @@ object PrintAstVisitor extends Visitor[String]:
    override def visitGrouping(g: Expr.Grouping): String =
      paren("group", g.expr)
 
-   override def visitLiteral[B](l: Expr.Literal[B]): String =
+   override def visitLiteral(l: Expr.Literal): String =
      l.value.toString
 
    override def visitUnary(l: Expr.Unary): String =

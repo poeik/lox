@@ -1,6 +1,6 @@
 package expr
 
-object PrintAstVisitor extends Visitor[String]:
+object PrintAstVisitorExpr extends VisitorExpr[String]:
    override def visitBinary(b: Expr.Binary): String =
      paren(b.operator.lexeme, b.left, b.right)
 
@@ -14,4 +14,4 @@ object PrintAstVisitor extends Visitor[String]:
      paren(l.operator.lexeme, l.right)
 
 def paren(name: String, exprs: Expr*): String =
-  s"($name${exprs.map(expr => s" ${Visitor.accept(expr, PrintAstVisitor)}").mkString("")})"
+  s"($name${exprs.map(expr => s" ${VisitorExpr.accept(expr, PrintAstVisitorExpr)}").mkString("")})"

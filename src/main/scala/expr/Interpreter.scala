@@ -4,12 +4,26 @@ import error.{ runtimeError, RuntimeError }
 import token.Token
 import token.TokenType.*
 
-object Interpreter extends Visitor[Either[RuntimeError, Lit]]:
+object Interpreter
+    extends VisitorExpr[Either[RuntimeError, Lit]]
+    with VisitorStmt[Either[RuntimeError, Unit]]:
 
-   def interpret(expr: Expr): Unit =
-     evaluate(expr) match
-        case Left(value)  => runtimeError(value)
-        case Right(value) => println(stringify(value))
+   def interpret(statements: List[Stmt]): Unit =
+      def go(stmts: List[Stmt]): Unit =
+        stmts match
+           case head :: tail => execute(head).fold(runtimeError, _ => go(tail))
+           case Nil          => ()
+      go(statements)
+
+   private def execute(stmt: Stmt): Either[RuntimeError, Unit] =
+     VisitorStmt.accept(stmt, this)
+
+   override def visitPrint(stmt: Stmt.Print): Either[RuntimeError, Unit] =
+     evaluate(stmt.expr).map(l => println(stringify(l)))
+
+   override def visitExpressionStatement(
+       stmt: Stmt.Expression
+   ): Either[RuntimeError, Unit] = evaluate(stmt.expr).map(_ => ())
 
    override def visitBinary(b: Expr.Binary): Either[RuntimeError, Lit] =
       val left  = evaluate(b.left)
@@ -117,7 +131,7 @@ object Interpreter extends Visitor[Either[RuntimeError, Lit]]:
         case (left, right)      => left.equals(right)
 
    private def evaluate(expr: Expr): Either[RuntimeError, Lit] =
-     Visitor.accept(expr, Interpreter)
+     VisitorExpr.accept(expr, Interpreter)
 
    private def isTruthy(lit: Lit): Lit.Bool =
      Lit.Bool(lit match

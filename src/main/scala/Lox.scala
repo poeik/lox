@@ -1,5 +1,5 @@
 import error.{ hadError, hadRuntimeError }
-import expr.{ Expr, Interpreter, Visitor }
+import expr.{ Expr, Interpreter, VisitorExpr }
 import parser.Parser
 import scanner.{ Scanner, ScannerMutable }
 import token.TokenType.EOF
@@ -16,8 +16,8 @@ import java.nio.charset.Charset
   args.toList match
      case Nil =>
        runPrompt()
-     case script :: Nil =>
-       runFile(script)
+     case filePath :: Nil =>
+       runFile(filePath)
      case _ =>
        println("Usage: jlox [script]")
        System.exit(64)
@@ -50,7 +50,6 @@ def runMutable(source: String): Unit =
 def run(source: String): Unit =
    val tokens: Seq[Token] = Scanner.scanTokens(source)
    val parser             = new Parser(tokens)
-   val expression         = parser.parse()
-
+   val statements         = parser.parse()
    if hadError then return
-   else Interpreter.interpret(expression)
+   else Interpreter.interpret(statements)

@@ -4,9 +4,12 @@ import error.{ runtimeError, RuntimeError }
 import token.Token
 import token.TokenType.*
 
-object Interpreter
+class Interpreter
     extends VisitorExpr[Either[RuntimeError, Lit]]
     with VisitorStmt[Either[RuntimeError, Unit]]:
+
+   // TODO: i hate this to be var
+   private var environment = Environment(None)
 
    def interpret(statements: List[Stmt]): Unit =
       def go(stmts: List[Stmt]): Unit =
@@ -18,12 +21,43 @@ object Interpreter
    private def execute(stmt: Stmt): Either[RuntimeError, Unit] =
      VisitorStmt.accept(stmt, this)
 
+   override def visitBlock(stmt: Stmt.Block): Either[RuntimeError, Unit] =
+     executeBlock(stmt.statements, Environment(Some(environment)))
+
+   private def executeBlock(
+       statements:  List[Stmt],
+       environment: Environment
+   ): Either[RuntimeError, Unit] =
+      val previous = this.environment
+      this.environment = environment
+
+      val result = statements.foldLeft[Either[RuntimeError, Unit]](Right(()))((acc, cur) =>
+        acc.flatMap(_ => execute(cur))
+      )
+      this.environment = previous
+      result
+
    override def visitPrint(stmt: Stmt.Print): Either[RuntimeError, Unit] =
      evaluate(stmt.expr).map(l => println(stringify(l)))
+
+   override def visitVarStmt(stmt: Stmt.Var): Either[RuntimeError, Unit] =
+     for result <- evaluate(stmt.initializer)
+     yield environment.define(stmt.name.lexeme, result)
 
    override def visitExpressionStatement(
        stmt: Stmt.Expression
    ): Either[RuntimeError, Unit] = evaluate(stmt.expr).map(_ => ())
+
+   override def visitAssignExpr(
+       expr: Expr.Assignment
+   ): Either[RuntimeError, Lit] =
+     for value <- evaluate(expr.value)
+     yield
+        environment.assign(expr.name, value)
+        value
+
+   override def visitVariable(expr: Expr.Variable): Either[RuntimeError, Lit] =
+     environment.get(expr.name)
 
    override def visitBinary(b: Expr.Binary): Either[RuntimeError, Lit] =
       val left  = evaluate(b.left)
@@ -131,7 +165,7 @@ object Interpreter
         case (left, right)      => left.equals(right)
 
    private def evaluate(expr: Expr): Either[RuntimeError, Lit] =
-     VisitorExpr.accept(expr, Interpreter)
+     VisitorExpr.accept(expr, this)
 
    private def isTruthy(lit: Lit): Lit.Bool =
      Lit.Bool(lit match

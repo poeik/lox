@@ -13,5 +13,10 @@ object PrintAstVisitorExpr extends VisitorExpr[String]:
    override def visitUnary(l: Expr.Unary): String =
      paren(l.operator.lexeme, l.right)
 
+   override def visitVariable(l: Expr.Variable): String = l.name.lexeme
+
+   override def visitAssignExpr(a: Expr.Assignment): String =
+     s"${a.name.lexeme} = ${VisitorExpr.accept(a.value, PrintAstVisitorExpr)}"
+
 def paren(name: String, exprs: Expr*): String =
   s"($name${exprs.map(expr => s" ${VisitorExpr.accept(expr, PrintAstVisitorExpr)}").mkString("")})"

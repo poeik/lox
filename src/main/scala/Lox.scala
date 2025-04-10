@@ -51,5 +51,5 @@ def run(source: String): Unit =
    val tokens: Seq[Token] = Scanner.scanTokens(source)
    val parser             = new Parser(tokens)
    val statements         = parser.parse()
-   if hadError then return
-   else Interpreter.interpret(statements)
+   if hadError then ()
+   else Interpreter().interpret(statements)

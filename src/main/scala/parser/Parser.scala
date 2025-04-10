@@ -1,10 +1,12 @@
 package parser
 
 import expr.{ Expr, Lit, Stmt }
-import expr.Expr.{ Binary, Grouping, Literal, Unary }
+import expr.Expr.{ Binary, Grouping, Literal, Unary, Variable }
 import token.TokenType.*
 import token.{ Token, TokenType }
 import error as reporting
+
+import expr.Stmt.Var
 
 import scala.util.boundary
 
@@ -23,15 +25,48 @@ class Parser(private val tokens: Seq[Token]) {
   def parse(): List[Stmt] = {
     @tailrec
     def go(acc: List[Stmt]): List[Stmt] =
-      if (!isAtEnd) go(statement() :: acc)
+      if (!isAtEnd) go(declaration() :: acc)
       else acc.reverse
 
     go(Nil)
   }
 
+  private def declaration(): Stmt =
+    try
+       if (`match`(VAR)) varDeclaration()
+       else statement()
+    catch
+       case _ =>
+         synchronize()
+         null // TODO: hmmmmm....
+
+  private def varDeclaration(): Stmt =
+     val name = consume(IDENTIFIER, "Expect variable name.")
+
+     val initializer =
+       if (`match`(EQUAL))
+         expression()
+       else Literal(Lit.Nil)
+
+     consume(SEMICOLON, "Expect ';' after variable decalation")
+     Var(name, initializer)
+
   private def statement(): Stmt =
     if (`match`(PRINT)) printStatement()
+    else if(`match`(LEFT_BRACE)) Stmt.Block(block())
     else expressionStatement()
+
+  private def block(): List[Stmt] =
+    @tailrec
+    def go(acc: List[Stmt]): List[Stmt] =
+      // the check for isAtEnd is necessary because, the user might accidentally create a block that never ends.
+      if (!check(RIGHT_BRACE) && !isAtEnd) go(declaration() :: acc)
+      else
+        consume(RIGHT_BRACE, "Expect '}' after block.")
+        acc.reverse
+
+    go(Nil)
+
 
   private def printStatement() =
      val expr = expression()
@@ -43,7 +78,18 @@ class Parser(private val tokens: Seq[Token]) {
      consume(SEMICOLON, "Expect ';' after value.")
      Stmt.Expression(expr)
 
-  private def expression(): Expr = equality()
+  private def expression(): Expr = assignment()
+
+  private def assignment(): Expr =
+     val expr = equality()
+
+     if `match`(EQUAL) then
+        val equals = previous()
+        val value  = assignment()
+        expr match
+           case Variable(name) => Expr.Assignment(name, value)
+           case _ => throw error(equals, "Invalid assignment target.")
+     else expr
 
   private def equality(): Expr =
      var expr = comparison()
@@ -100,6 +146,8 @@ class Parser(private val tokens: Seq[Token]) {
           Literal(Lit.Number(v))
         case STRING(v) => Literal(Lit.Str(v))
         case NIL       => Literal(Lit.Nil)
+        case IDENTIFIER =>
+          Variable(peek())
         case LEFT_PAREN =>
           advance()
           val expr = expression()
@@ -154,7 +202,7 @@ class Parser(private val tokens: Seq[Token]) {
     ParseError()
   }
 
-  def synchronize(): Unit =
+  private def synchronize(): Unit =
      advance()
      while !isAtEnd do
         if (previous().tokenType == SEMICOLON) return

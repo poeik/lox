@@ -6,12 +6,9 @@ import token.TokenType.*
 
 import scala.annotation.tailrec
 
-class Interpreter
+class Interpreter(val environment: Environment)
     extends VisitorExpr[Either[RuntimeError, Lit]]
     with VisitorStmt[Either[RuntimeError, Unit]]:
-
-   // TODO: i hate this to be var
-   private var environment = Environment(None)
 
    def interpret(statements: List[Stmt]): Unit =
       def go(stmts: List[Stmt]): Unit =
@@ -21,23 +18,22 @@ class Interpreter
       go(statements)
 
    private def execute(stmt: Stmt): Either[RuntimeError, Unit] =
-     VisitorStmt.accept(stmt, this)
+     VisitorStmt.accept(stmt, Interpreter(environment))
 
-   override def visitBlock(stmt: Stmt.Block): Either[RuntimeError, Unit] =
-     executeBlock(stmt.statements, Environment(Some(environment)))
+   override def visitBlock(
+       stmt: Stmt.Block
+   ): Either[RuntimeError, Unit] =
+      val temp            = Environment(Some(environment))
+      val tempInterpreter = Interpreter(temp)
+      tempInterpreter.executeBlock(stmt.statements)
 
    private def executeBlock(
-       statements:  List[Stmt],
-       environment: Environment
+       statements: List[Stmt]
    ): Either[RuntimeError, Unit] =
-      val previous = this.environment
-      this.environment = environment
-
       val result =
         statements.foldLeft[Either[RuntimeError, Unit]](Right(()))((acc, cur) =>
           acc.flatMap(_ => execute(cur))
         )
-      this.environment = previous
       result
 
    override def visitPrint(stmt: Stmt.Print): Either[RuntimeError, Unit] =
@@ -51,8 +47,9 @@ class Interpreter
      @tailrec
      def go(): Either[RuntimeError, Unit] =
        evaluate(stmt.condition) match {
-         case Left(err)                      => Left(err) // error in the condition detected
-         case Right(c) if !isTruthy(c).value => Right(()) // condition does not hold
+         case Left(err) => Left(err) // error in the condition detected
+         case Right(c) if !isTruthy(c).value =>
+           Right(()) // condition does not hold
          case Right(_) =>
            execute(stmt.body) match {
              case Left(err) => Left(err)

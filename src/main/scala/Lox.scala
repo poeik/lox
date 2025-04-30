@@ -1,9 +1,9 @@
-import error.{ hadError, hadRuntimeError }
-import expr.{ Expr, Interpreter, VisitorExpr }
+import error.{hadError, hadRuntimeError}
+import expr.{Environment, Expr, Interpreter, VisitorExpr}
 import parser.Parser
-import scanner.{ Scanner, ScannerMutable }
+import scanner.{Scanner, ScannerMutable}
 import token.TokenType.EOF
-import token.{ Token, TokenType }
+import token.{Token, TokenType}
 
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -42,14 +42,9 @@ def runPrompt(): Unit =
       }
   }
 
-def runMutable(source: String): Unit =
-   val scanner            = new ScannerMutable(source)
-   val tokens: Seq[Token] = scanner.scanTokens()
-   tokens.foreach(println(_))
-
 def run(source: String): Unit =
    val tokens: Seq[Token] = Scanner.scanTokens(source)
    val parser             = new Parser(tokens)
    val statements         = parser.parse()
    if hadError then ()
-   else Interpreter().interpret(statements)
+   else Interpreter(Environment(None)).interpret(statements)

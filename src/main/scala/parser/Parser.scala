@@ -104,25 +104,36 @@ class Parser(private val tokens: Seq[Token]) {
      else expr
 
   private def or(): Expr =
-     var expr = and()
+     @tailrec
+     def go(expr: Expr): Expr =
+       if !`match`(OR) then expr
+       else
+          val operator = previous()
+          val right    = and()
+          go(Expr.Logical(expr, operator, right))
+     go(and())
 
-     while (`match`(OR)) {
-       val operator = previous()
-       val right    = and()
-       expr = Expr.Logical(expr, operator, right)
-     }
-     expr
+  /** Just for fun: We parse the left hand side then, if we come across "and" we
+    * parse the right hand side and store it with the operator in a tuple.
+    *
+    * Then we fold the whole (operator, equality) list into a single expression,
+    * by taking the accumulator as the lhs of the operator.
+    */
+  private def and(): Expr = {
+    val first = equality()
 
-  private def and(): Expr =
-     var expr = equality()
+    val pairs: List[(Token, Expr)] =
+      Iterator
+        .continually(())
+        .takeWhile(_ => `match`(AND))
+        .map(_ => (previous(), equality()))
+        .toList
 
-     while (`match`(AND)) {
-       val operator = previous()
-       val right    = equality()
-       expr = Expr.Logical(expr, operator, right)
-     }
-
-     expr
+    pairs.foldLeft(first) {
+      case (leftExpr, (operator, rightExpr)) =>
+        Expr.Logical(leftExpr, operator, rightExpr)
+    }
+  }
 
   private def equality(): Expr =
      var expr = comparison()

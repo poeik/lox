@@ -15,3 +15,4 @@ enum Expr:
    case Unary(operator: Token, right: Expr)
    case Variable(name: Token)
    case Assignment(name: Token, value: Expr)
+   case Logical(left: Expr, operator: Token, right: Expr)

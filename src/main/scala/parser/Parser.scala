@@ -53,20 +53,32 @@ class Parser(private val tokens: Seq[Token]) {
 
   private def statement(): Stmt =
     if (`match`(PRINT)) printStatement()
-    else if(`match`(LEFT_BRACE)) Stmt.Block(block())
+    else if (`match`(IF)) ifStatement()
+    else if (`match`(LEFT_BRACE)) Stmt.Block(block())
     else expressionStatement()
 
   private def block(): List[Stmt] =
-    @tailrec
-    def go(acc: List[Stmt]): List[Stmt] =
-      // the check for isAtEnd is necessary because, the user might accidentally create a block that never ends.
-      if (!check(RIGHT_BRACE) && !isAtEnd) go(declaration() :: acc)
-      else
-        consume(RIGHT_BRACE, "Expect '}' after block.")
-        acc.reverse
+     @tailrec
+     def go(acc: List[Stmt]): List[Stmt] =
+       // the check for isAtEnd is necessary because, the user might accidentally create a block that never ends.
+       if (!check(RIGHT_BRACE) && !isAtEnd) go(declaration() :: acc)
+       else
+          consume(RIGHT_BRACE, "Expect '}' after block.")
+          acc.reverse
 
-    go(Nil)
+     go(Nil)
 
+  private def ifStatement() =
+     consume(LEFT_PAREN, "Expect '(' after 'if'.")
+     val condition = expression()
+     consume(RIGHT_PAREN, "Expect ')' after if condition.")
+
+     val thenBranch = statement()
+     val elseBranch =
+       if (`match`(ELSE)) Some(statement())
+       else None
+
+     Stmt.If(condition, thenBranch, elseBranch)
 
   private def printStatement() =
      val expr = expression()
@@ -81,7 +93,7 @@ class Parser(private val tokens: Seq[Token]) {
   private def expression(): Expr = assignment()
 
   private def assignment(): Expr =
-     val expr = equality()
+     val expr = or()
 
      if `match`(EQUAL) then
         val equals = previous()
@@ -90,6 +102,27 @@ class Parser(private val tokens: Seq[Token]) {
            case Variable(name) => Expr.Assignment(name, value)
            case _ => throw error(equals, "Invalid assignment target.")
      else expr
+
+  private def or(): Expr =
+     var expr = and()
+
+     while (`match`(OR)) {
+       val operator = previous()
+       val right    = and()
+       expr = Expr.Logical(expr, operator, right)
+     }
+     expr
+
+  private def and(): Expr =
+     var expr = equality()
+
+     while (`match`(AND)) {
+       val operator = previous()
+       val right    = equality()
+       expr = Expr.Logical(expr, operator, right)
+     }
+
+     expr
 
   private def equality(): Expr =
      var expr = comparison()

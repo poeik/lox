@@ -7,3 +7,4 @@ enum Stmt:
    case Expression(expr: Expr)
    case Var(name: Token, initializer: Expr)
    case Block(statements: List[Stmt])
+   case If(condition: Expr, thenBranch: Stmt, elseBranch: Option[Stmt])

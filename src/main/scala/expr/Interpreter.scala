@@ -1,7 +1,7 @@
 package expr
 
 import error.{ runtimeError, RuntimeError }
-import token.Token
+import token.{ Token, TokenType }
 import token.TokenType.*
 
 class Interpreter
@@ -32,8 +32,8 @@ class Interpreter
       this.environment = environment
 
       val result = statements.foldLeft[Either[RuntimeError, Unit]](Right(()))((acc, cur) =>
-        acc.flatMap(_ => execute(cur))
-      )
+          acc.flatMap(_ => execute(cur))
+        )
       this.environment = previous
       result
 
@@ -43,6 +43,12 @@ class Interpreter
    override def visitVarStmt(stmt: Stmt.Var): Either[RuntimeError, Unit] =
      for result <- evaluate(stmt.initializer)
      yield environment.define(stmt.name.lexeme, result)
+
+   override def visitIf(stmt: Stmt.If): Either[RuntimeError, Unit] =
+     evaluate(stmt.condition).flatMap { b =>
+       if isTruthy(b).value then execute(stmt.thenBranch)
+       else stmt.elseBranch.fold(Right(()))(execute)
+     }
 
    override def visitExpressionStatement(
        stmt: Stmt.Expression
@@ -100,6 +106,17 @@ class Interpreter
 
    override def visitLiteral(l: Expr.Literal): Either[RuntimeError, Lit] =
      Right(l.value)
+
+   override def visitLogicalExpr(
+       expr: Expr.Logical
+   ): Either[RuntimeError, Lit] =
+     evaluate(expr.left).flatMap { left =>
+       if expr.operator.tokenType == TokenType.OR then
+          if isTruthy(left).value then Right(left)
+          else evaluate(expr.right)
+       else if (!isTruthy(left).value) Right(left)
+       else evaluate(expr.right)
+     }
 
    override def visitUnary(expr: Expr.Unary): Either[RuntimeError, Lit] =
       val right = evaluate(expr.right)

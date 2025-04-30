@@ -5,6 +5,7 @@ trait VisitorStmt[A]:
    def visitPrint(g:               Stmt.Print): A
    def visitVarStmt(g:             Stmt.Var): A
    def visitBlock(b:               Stmt.Block): A
+   def visitIf(i:                  Stmt.If): A
 
 object VisitorStmt {
   def accept[A](stmt: Stmt, visitor: VisitorStmt[A]): A = stmt match
@@ -12,4 +13,5 @@ object VisitorStmt {
      case e: Stmt.Expression => visitor.visitExpressionStatement(e)
      case v: Stmt.Var        => visitor.visitVarStmt(v)
      case b: Stmt.Block      => visitor.visitBlock(b)
+     case i: Stmt.If         => visitor.visitIf(i)
 }

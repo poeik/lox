@@ -6,11 +6,12 @@ import token.TokenType.*
 import token.{ Token, TokenType }
 import error as reporting
 
+import expr.Lit.Bool
 import expr.Stmt.Var
 
 import scala.util.boundary
 
-/*
+/**
  * This implementation is similar to the one in the book, but it uses match-expression instead of the function `match`
  * where useful. However, this leads to cases where you need to manually advance(). This leads to cases where you need
  * to use `satisfies` instead of `consume`, because otherwise you will consume a token too much.
@@ -52,10 +53,46 @@ class Parser(private val tokens: Seq[Token]) {
      Var(name, initializer)
 
   private def statement(): Stmt =
-    if (`match`(PRINT)) printStatement()
+    if (`match`(FOR)) forStatement()
+    else if (`match`(PRINT)) printStatement()
+    else if (`match`(WHILE)) whileStatement()
     else if (`match`(IF)) ifStatement()
     else if (`match`(LEFT_BRACE)) Stmt.Block(block())
     else expressionStatement()
+
+  /** This desugars a for loop into a while loop in the following way:
+    *
+    * `for (var b2 = 0; b2 <= 1000000; b2 = b2+1) print b2;`
+    *
+    * `var b2 = 0; while(b2 <= 1000000) { print b2; b2 = b2 + 1; }`
+    *
+    * So we only need to extend the parser and not the interpreter to support
+    * for loops!
+    */
+  private def forStatement(): Stmt =
+     consume(LEFT_PAREN, "Expect '(' after 'for'.")
+     val initializer =
+       if `match`(SEMICOLON) then None
+       else if `match`(VAR) then Some(varDeclaration())
+       else Some(expressionStatement())
+
+     val optCondition = if !check(SEMICOLON) then Some(expression()) else None
+     consume(SEMICOLON, "Expect ';' after loop condition")
+
+     val increment = if !check(RIGHT_PAREN) then Some(expression()) else None
+     consume(RIGHT_PAREN, "Expect ')' after for clauses")
+
+     val body = increment match
+        case Some(value) =>
+          Stmt.Block(List(statement(), Stmt.Expression(value)))
+        case None => statement()
+
+     val condition = optCondition.getOrElse(Expr.Literal(Bool(true)))
+     val loop      = Stmt.While(condition, body)
+
+     initializer match
+        case Some(value) => Stmt.Block(List(value, loop))
+        case None        => loop
 
   private def block(): List[Stmt] =
      @tailrec
@@ -84,6 +121,13 @@ class Parser(private val tokens: Seq[Token]) {
      val expr = expression()
      consume(SEMICOLON, "Expect ';' after value.")
      Stmt.Print(expr)
+
+  private def whileStatement() =
+     consume(LEFT_PAREN, "Expect '(' after 'while'.")
+     val condition = expression()
+     consume(RIGHT_PAREN, "Expect ')' after condition.")
+     val body = statement()
+     Stmt.While(condition, body)
 
   private def expressionStatement(): Stmt =
      val expr = expression()

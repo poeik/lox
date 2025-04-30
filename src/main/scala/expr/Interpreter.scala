@@ -4,6 +4,8 @@ import error.{ runtimeError, RuntimeError }
 import token.{ Token, TokenType }
 import token.TokenType.*
 
+import scala.annotation.tailrec
+
 class Interpreter
     extends VisitorExpr[Either[RuntimeError, Lit]]
     with VisitorStmt[Either[RuntimeError, Unit]]:
@@ -31,7 +33,8 @@ class Interpreter
       val previous = this.environment
       this.environment = environment
 
-      val result = statements.foldLeft[Either[RuntimeError, Unit]](Right(()))((acc, cur) =>
+      val result =
+        statements.foldLeft[Either[RuntimeError, Unit]](Right(()))((acc, cur) =>
           acc.flatMap(_ => execute(cur))
         )
       this.environment = previous
@@ -43,6 +46,30 @@ class Interpreter
    override def visitVarStmt(stmt: Stmt.Var): Either[RuntimeError, Unit] =
      for result <- evaluate(stmt.initializer)
      yield environment.define(stmt.name.lexeme, result)
+
+   override def visitWhile(stmt: Stmt.While): Either[RuntimeError, Unit] = {
+     @tailrec
+     def go(): Either[RuntimeError, Unit] =
+       evaluate(stmt.condition) match {
+         case Left(err)                      => Left(err) // error in the condition detected
+         case Right(c) if !isTruthy(c).value => Right(()) // condition does not hold
+         case Right(_) =>
+           execute(stmt.body) match {
+             case Left(err) => Left(err)
+             case Right(_)  => go()
+           }
+       }
+     go()
+   }
+
+//   this would be a much simpler version of while, however we will pretty fast run into a stackoverflow
+//   override def visitWhile(stmt: Stmt.While): Either[RuntimeError, Unit] =
+//      def go(): Either[RuntimeError, Unit] =
+//        evaluate(stmt.condition).flatMap { c =>
+//          if isTruthy(c).value then execute(stmt.body).flatMap(_ => go())
+//          else Right(())
+//        }
+//      go()
 
    override def visitIf(stmt: Stmt.If): Either[RuntimeError, Unit] =
      evaluate(stmt.condition).flatMap { b =>

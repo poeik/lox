@@ -1,16 +1,14 @@
 import error.{hadError, hadRuntimeError}
-import expr.{Environment, Expr, Interpreter, VisitorExpr}
+import expr.{Environment, Interpreter}
+import interpreter.Globals
 import parser.Parser
-import scanner.{Scanner, ScannerMutable}
-import token.TokenType.EOF
-import token.{Token, TokenType}
+import scanner.Scanner
+import token.Token
 
-import java.nio.file.Files
-import java.nio.file.Paths
-import java.io.InputStreamReader
-import java.io.BufferedReader
-import scala.util.Using
+import java.io.{BufferedReader, InputStreamReader}
 import java.nio.charset.Charset
+import java.nio.file.{Files, Paths}
+import scala.util.Using
 
 @main def main(args: String*): Unit =
   args.toList match
@@ -47,4 +45,6 @@ def run(source: String): Unit =
    val parser             = new Parser(tokens)
    val statements         = parser.parse()
    if hadError then ()
-   else Interpreter(Environment(None)).interpret(statements)
+   else
+      val env = Environment(Some(Globals.globals))
+      Interpreter(env).interpret(statements)

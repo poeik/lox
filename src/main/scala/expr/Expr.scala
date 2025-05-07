@@ -1,13 +1,24 @@
 package expr
 
+import error.RuntimeError
 import token.Token
+
+enum Fn:
+   case Lox(body: List[Stmt], params: List[Token])
+   case Native(
+       fn: (
+           interpreter: Interpreter,
+           params: List[Lit]
+       ) => Either[RuntimeError, Lit],
+       arity: Int
+   )
 
 enum Lit:
    case Nil
    case Number(value: Double)
    case Str(value: String)
    case Bool(value: Boolean)
-   case Function(body: List[Stmt], params: List[Token])
+   case Callable(fn: Fn)
 
 enum Expr:
    case Binary(left: Expr, operator: Token, right: Expr)

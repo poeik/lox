@@ -1,8 +1,9 @@
 package expr
 
-import error.{RuntimeError, runtimeError}
+import error.{ runtimeError, RuntimeError }
+import expr.Fn.Lox
 import interpreter.Return
-import token.{Token, TokenType}
+import token.{ Token, TokenType }
 import token.TokenType.*
 
 import scala.annotation.tailrec
@@ -91,7 +92,7 @@ class Interpreter(val environment: Environment)
      Right(
        environment.define(
          f.name.lexeme,
-         Lit.Function(f.body, f.params)
+         Lit.Callable(Fn.Lox(f.body, f.params))
        )
      )
 
@@ -180,15 +181,21 @@ class Interpreter(val environment: Environment)
           case (err, _) => err
         }
         result <- callee match {
-          case fn @ Lit.Function(body, params) =>
-            if params.size != args.size then
+          case Lit.Callable(fn) =>
+            val amtParams = amtOfParams(fn)
+            if amtParams != args.size then
                Left(
                  RuntimeError(
                    expr.paren,
-                   s"Expected ${params.size} arguments but got ${args.size}."
+                   s"Expected $amtParams arguments but got ${args.size}."
                  )
                )
-            else call(fn, args)
+            else
+               fn match {
+                 case loxFn @ Fn.Lox(body, params) =>
+                   callLox(loxFn, params, args)
+                 case nativeFn @ Fn.Native(fn, _) => callNative(nativeFn, args)
+               }
           case _ =>
             Left(
               RuntimeError(expr.paren, "Can only call functions and classes")
@@ -196,20 +203,28 @@ class Interpreter(val environment: Environment)
         }
      yield result
 
-   private def call(
-       fn:   Lit.Function,
-       args: List[Lit]
+   private def amtOfParams(fn: Fn) =
+     fn match {
+       case Fn.Lox(body, params) => params.size
+       case Fn.Native(fn, arity) => arity
+     }
+
+   private def callLox(
+       function: Fn.Lox,
+       params:   List[Token],
+       args:     List[Lit]
    ): Either[RuntimeError, Lit] =
       val environment = Environment(Some(this.environment))
-      fn.params.zip(args).foreach {
+      params.zip(args).foreach {
         case (token, lit) =>
           environment.define(token.lexeme, lit)
       }
       val interpreter = Interpreter(environment)
-      try
-        interpreter.executeBlock(fn.body).map(_ => Lit.Nil)
-      catch
-        case e: Return => e.value
+      try interpreter.executeBlock(function.body).map(_ => Lit.Nil)
+      catch case e: Return => e.value
+
+   private def callNative(function: Fn.Native, args: List[Lit]) =
+     function.fn(this, args)
 
    private def checkNumberOperands(
        operator: Token,
@@ -274,7 +289,7 @@ class Interpreter(val environment: Environment)
         case _           => true
      )
 
-   private def stringify(lit: Lit): String =
+   def stringify(lit: Lit): String =
      lit match
         case Lit.Nil => "nil"
         case Lit.Number(value) =>
@@ -283,3 +298,8 @@ class Interpreter(val environment: Environment)
              case t                     => t
         case Lit.Str(value)  => value
         case Lit.Bool(value) => value.toString
+        case expr.Lit.Callable(f) =>
+          f match {
+            case Fn.Lox(body, _)  => "<fn lox>"
+            case Fn.Native(fn, _) => "<fn native>"
+          }

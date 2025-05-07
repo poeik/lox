@@ -21,5 +21,7 @@ object PrintAstVisitorExpr extends VisitorExpr[String]:
    override def visitLogicalExpr(a: Expr.Logical): String =
      s"${VisitorExpr.accept(a.left, PrintAstVisitorExpr)} ${a.operator} ${VisitorExpr.accept(a.right, PrintAstVisitorExpr)}"
 
+   override def visitCallExpr(a: Expr.Call): String = s"${VisitorExpr.accept(a.callee, this)}"
+
 def paren(name: String, exprs: Expr*): String =
   s"($name${exprs.map(expr => s" ${VisitorExpr.accept(expr, PrintAstVisitorExpr)}").mkString("")})"

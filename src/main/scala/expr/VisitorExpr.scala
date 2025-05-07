@@ -8,6 +8,7 @@ trait VisitorExpr[A]:
    def visitVariable(l:    Expr.Variable): A
    def visitAssignExpr(a:  Expr.Assignment): A
    def visitLogicalExpr(a: Expr.Logical): A
+   def visitCallExpr(a:    Expr.Call): A
 
 object VisitorExpr {
   def accept[A](ex: Expr, visitor: VisitorExpr[A]): A = ex match
@@ -18,4 +19,5 @@ object VisitorExpr {
      case v: Expr.Variable   => visitor.visitVariable(v)
      case a: Expr.Assignment => visitor.visitAssignExpr(a)
      case l: Expr.Logical    => visitor.visitLogicalExpr(l)
+     case c: Expr.Call       => visitor.visitCallExpr(c)
 }

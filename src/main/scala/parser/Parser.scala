@@ -11,11 +11,12 @@ import expr.Stmt.Var
 
 import scala.util.boundary
 
-/**
- * This implementation is similar to the one in the book, but it uses match-expression instead of the function `match`
- * where useful. However, this leads to cases where you need to manually advance(). This leads to cases where you need
- * to use `satisfies` instead of `consume`, because otherwise you will consume a token too much.
- */
+/** This implementation is similar to the one in the book, but it uses
+  * match-expression instead of the function `match` where useful. However, this
+  * leads to cases where you need to manually advance(). This leads to cases
+  * where you need to use `satisfies` instead of `consume`, because otherwise
+  * you will consume a token too much.
+  */
 class Parser(private val tokens: Seq[Token]) {
   private class ParseError extends RuntimeException
 
@@ -28,18 +29,36 @@ class Parser(private val tokens: Seq[Token]) {
     def go(acc: List[Stmt]): List[Stmt] =
       if (!isAtEnd) go(declaration() :: acc)
       else acc.reverse
-
     go(Nil)
   }
 
   private def declaration(): Stmt =
     try
-       if (`match`(VAR)) varDeclaration()
+       if `match`(FUN) then funDeclaration("function")
+       else if `match`(VAR) then varDeclaration()
        else statement()
     catch
        case _ =>
          synchronize()
          null // TODO: hmmmmm....
+
+  private def funDeclaration(kind: String): Stmt =
+     @tailrec
+     def parseParameters(params: List[Token]): List[Token] =
+        if (params.size >= 255)
+          error(peek(), "Can't have more than 255 arguments.")
+        val token = consume(IDENTIFIER, "Expect parameter name.")
+        val all   = params.appended(token)
+        if `match`(COMMA) then parseParameters(all)
+        else all
+
+     val name = consume(IDENTIFIER, s"Expect $kind name")
+     consume(LEFT_PAREN, s"Expect '(' after $kind name.")
+     val params = if !check(RIGHT_PAREN) then parseParameters(Nil) else Nil
+     val paren  = consume(RIGHT_PAREN, "Expect ')' after params.")
+
+     consume(LEFT_BRACE, s"Expect '{' before $kind body.")
+     Stmt.Function(name, params, block())
 
   private def varDeclaration(): Stmt =
      val name = consume(IDENTIFIER, "Expect variable name.")
@@ -55,6 +74,7 @@ class Parser(private val tokens: Seq[Token]) {
   private def statement(): Stmt =
     if (`match`(FOR)) forStatement()
     else if (`match`(PRINT)) printStatement()
+    else if (`match`(RETURN)) returnStatement()
     else if (`match`(WHILE)) whileStatement()
     else if (`match`(IF)) ifStatement()
     else if (`match`(LEFT_BRACE)) Stmt.Block(block())
@@ -121,6 +141,12 @@ class Parser(private val tokens: Seq[Token]) {
      val expr = expression()
      consume(SEMICOLON, "Expect ';' after value.")
      Stmt.Print(expr)
+     
+  private def returnStatement() =
+    val keyword = previous()
+    val returnValue = if !check(SEMICOLON) then expression() else Expr.Literal(Lit.Nil)
+    consume(SEMICOLON, "Expect ',' after return value.")
+    Stmt.Return(keyword, returnValue)
 
   private def whileStatement() =
      consume(LEFT_PAREN, "Expect '(' after 'while'.")
@@ -224,7 +250,30 @@ class Parser(private val tokens: Seq[Token]) {
          val operator = previous()
          val right    = unary()
          Unary(operator, right)
-       case _ => primary()
+       case _ => call()
+
+  private def call(): Expr =
+     @tailrec
+     def go(expr: Expr): Expr =
+       if `match`(LEFT_PAREN) then go(finishCall(expr))
+       else expr
+
+     go(primary())
+
+  private def finishCall(callee: Expr) =
+     @tailrec
+     def parseArguments(args: List[Expr]): List[Expr] =
+        if (args.size >= 255)
+          error(peek(), "Can't have more than 255 arguments.")
+        val expr = expression()
+        val all  = args.appended(expr)
+        if `match`(COMMA) then parseArguments(all)
+        else all
+
+     val args  = if !check(RIGHT_PAREN) then parseArguments(Nil) else Nil
+     val paren = consume(RIGHT_PAREN, "Expect ')' after arguments.")
+
+     Expr.Call(callee, paren, args)
 
   private def primary(): Expr =
      val res = peek().tokenType match
@@ -273,7 +322,6 @@ class Parser(private val tokens: Seq[Token]) {
 
   /*
    * Attention:
-   * in the boo
    * In the book this method is called `consume` and does not just peek but advance, meaning it moves the
    * cursor 1 step forward.
    */

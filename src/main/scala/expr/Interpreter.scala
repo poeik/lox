@@ -1,7 +1,8 @@
 package expr
 
-import error.{ runtimeError, RuntimeError }
-import token.{ Token, TokenType }
+import error.{RuntimeError, runtimeError}
+import interpreter.Return
+import token.{Token, TokenType}
 import token.TokenType.*
 
 import scala.annotation.tailrec
@@ -38,6 +39,12 @@ class Interpreter(val environment: Environment)
 
    override def visitPrint(stmt: Stmt.Print): Either[RuntimeError, Unit] =
      evaluate(stmt.expr).map(l => println(stringify(l)))
+
+   override def visitReturnStatement(
+       r: Stmt.Return
+   ): Either[RuntimeError, Unit] =
+     // TODO: refactor somehow... maybe try modelling it as an expression?
+     throw Return(evaluate(r.value))
 
    override def visitVarStmt(stmt: Stmt.Var): Either[RuntimeError, Unit] =
      for result <- evaluate(stmt.initializer)
@@ -77,6 +84,16 @@ class Interpreter(val environment: Environment)
    override def visitExpressionStatement(
        stmt: Stmt.Expression
    ): Either[RuntimeError, Unit] = evaluate(stmt.expr).map(_ => ())
+
+   override def visitFunctionStatement(
+       f: Stmt.Function
+   ): Either[RuntimeError, Unit] =
+     Right(
+       environment.define(
+         f.name.lexeme,
+         Lit.Function(f.body, f.params)
+       )
+     )
 
    override def visitAssignExpr(
        expr: Expr.Assignment
@@ -151,6 +168,48 @@ class Interpreter(val environment: Environment)
              .flatMap(r => checkNumberOperand(expr.operator, r))
              .map(Lit.Number(_))
          case _ => Left(RuntimeError(expr.operator, "illegal state"))
+
+   override def visitCallExpr(expr: Expr.Call): Either[RuntimeError, Lit] =
+     for
+        callee <- evaluate(expr.callee)
+        args <- expr.arguments.foldLeft[Either[RuntimeError, List[Lit]]](
+          Right(Nil)
+        ) {
+          case (Right(all), currentArg) =>
+            evaluate(currentArg).map(lit => all :+ lit)
+          case (err, _) => err
+        }
+        result <- callee match {
+          case fn @ Lit.Function(body, params) =>
+            if params.size != args.size then
+               Left(
+                 RuntimeError(
+                   expr.paren,
+                   s"Expected ${params.size} arguments but got ${args.size}."
+                 )
+               )
+            else call(fn, args)
+          case _ =>
+            Left(
+              RuntimeError(expr.paren, "Can only call functions and classes")
+            )
+        }
+     yield result
+
+   private def call(
+       fn:   Lit.Function,
+       args: List[Lit]
+   ): Either[RuntimeError, Lit] =
+      val environment = Environment(Some(this.environment))
+      fn.params.zip(args).foreach {
+        case (token, lit) =>
+          environment.define(token.lexeme, lit)
+      }
+      val interpreter = Interpreter(environment)
+      try
+        interpreter.executeBlock(fn.body).map(_ => Lit.Nil)
+      catch
+        case e: Return => e.value
 
    private def checkNumberOperands(
        operator: Token,

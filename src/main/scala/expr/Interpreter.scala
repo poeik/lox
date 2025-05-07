@@ -92,7 +92,7 @@ class Interpreter(val environment: Environment)
      Right(
        environment.define(
          f.name.lexeme,
-         Lit.Callable(Fn.Lox(f.body, f.params))
+         Lit.Callable(Fn.Lox(f.body, f.params, this.environment))
        )
      )
 
@@ -192,8 +192,8 @@ class Interpreter(val environment: Environment)
                )
             else
                fn match {
-                 case loxFn @ Fn.Lox(body, params) =>
-                   callLox(loxFn, params, args)
+                 case loxFn @ Fn.Lox(body, _, _) =>
+                   callLox(loxFn, args)
                  case nativeFn @ Fn.Native(fn, _) => callNative(nativeFn, args)
                }
           case _ =>
@@ -205,17 +205,16 @@ class Interpreter(val environment: Environment)
 
    private def amtOfParams(fn: Fn) =
      fn match {
-       case Fn.Lox(body, params) => params.size
-       case Fn.Native(fn, arity) => arity
+       case Fn.Lox(body, params, _) => params.size
+       case Fn.Native(fn, arity)    => arity
      }
 
    private def callLox(
        function: Fn.Lox,
-       params:   List[Token],
        args:     List[Lit]
    ): Either[RuntimeError, Lit] =
-      val environment = Environment(Some(this.environment))
-      params.zip(args).foreach {
+      val environment = Environment(Some(function.closure))
+      function.params.zip(args).foreach {
         case (token, lit) =>
           environment.define(token.lexeme, lit)
       }
@@ -300,6 +299,6 @@ class Interpreter(val environment: Environment)
         case Lit.Bool(value) => value.toString
         case expr.Lit.Callable(f) =>
           f match {
-            case Fn.Lox(body, _)  => "<fn lox>"
+            case Fn.Lox(_, _, _)  => "<fn lox>"
             case Fn.Native(fn, _) => "<fn native>"
           }

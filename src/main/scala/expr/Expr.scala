@@ -4,7 +4,7 @@ import error.RuntimeError
 import token.Token
 
 enum Fn:
-   case Lox(body: List[Stmt], params: List[Token])
+   case Lox(body: List[Stmt], params: List[Token], closure: Environment)
    case Native(
        fn: (
            interpreter: Interpreter,

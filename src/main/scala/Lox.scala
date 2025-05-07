@@ -1,6 +1,5 @@
 import error.{hadError, hadRuntimeError}
-import expr.{Environment, Interpreter}
-import interpreter.Globals
+import interpreter.{Environment, Globals, Interpreter}
 import parser.Parser
 import scanner.Scanner
 import token.Token

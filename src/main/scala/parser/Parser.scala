@@ -1,13 +1,13 @@
 package parser
 
-import expr.{ Expr, Lit, Stmt }
-import expr.Expr.{ Binary, Grouping, Literal, Unary, Variable }
+import ast.{ Expr, Lit, Stmt }
+import ast.Expr.{ Binary, Grouping, Literal, Unary, Variable }
 import token.TokenType.*
 import token.{ Token, TokenType }
 import error as reporting
 
-import expr.Lit.Bool
-import expr.Stmt.Var
+import ast.Lit.Bool
+import ast.Stmt.Var
 
 import scala.util.boundary
 

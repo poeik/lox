@@ -1,4 +1,4 @@
-package expr
+package ast
 
 trait VisitorExpr[A]:
    def visitBinary(b:      Expr.Binary): A

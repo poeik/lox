@@ -1,10 +1,11 @@
-package expr
+package interpreter
 
-import error.{ runtimeError, RuntimeError }
-import expr.Fn.Lox
+import error.{RuntimeError, runtimeError}
+import ast.Fn.Lox
+import ast.*
 import interpreter.Return
-import token.{ Token, TokenType }
 import token.TokenType.*
+import token.{Token, TokenType}
 
 import scala.annotation.tailrec
 
@@ -297,7 +298,7 @@ class Interpreter(val environment: Environment)
              case t                     => t
         case Lit.Str(value)  => value
         case Lit.Bool(value) => value.toString
-        case expr.Lit.Callable(f) =>
+        case ast.Lit.Callable(f) =>
           f match {
             case Fn.Lox(_, _, _)  => "<fn lox>"
             case Fn.Native(fn, _) => "<fn native>"

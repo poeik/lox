@@ -1,6 +1,7 @@
-package expr
+package interpreter
 
 import error.RuntimeError
+import ast.Lit
 import token.Token
 
 class Environment(private val enclosing: Option[Environment]):

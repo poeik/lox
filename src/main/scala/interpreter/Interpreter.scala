@@ -105,6 +105,9 @@ class Interpreter(val environment: Environment)
         environment.assign(expr.name, value)
         value
 
+   override def visitLambda(f: Expr.Lambda): Either[RuntimeError, Lit] =
+     Right(Lit.Callable(Fn.Lox(f.body, f.params, this.environment)))
+
    override def visitVariable(expr: Expr.Variable): Either[RuntimeError, Lit] =
      environment.get(expr.name)
 
@@ -303,3 +306,4 @@ class Interpreter(val environment: Environment)
             case Fn.Lox(_, _, _)  => "<fn lox>"
             case Fn.Native(fn, _) => "<fn native>"
           }
+

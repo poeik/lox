@@ -1,13 +1,13 @@
 package parser
 
-import ast.{ Expr, Lit, Stmt }
-import ast.Expr.{ Binary, Grouping, Literal, Unary, Variable }
-import token.TokenType.*
-import token.{ Token, TokenType }
 import error as reporting
 
+import ast.Expr.*
 import ast.Lit.Bool
 import ast.Stmt.Var
+import ast.{ Expr, Lit, Stmt }
+import token.TokenType.*
+import token.{ Token, TokenType }
 
 import scala.util.boundary
 
@@ -42,7 +42,7 @@ class Parser(private val tokens: Seq[Token]) {
          synchronize()
          null // TODO: hmmmmm....
 
-  private def funDeclaration(kind: String): Stmt =
+  private def lambda(kind: String): (List[Token], List[Stmt]) =
      @tailrec
      def parseParameters(params: List[Token]): List[Token] =
         if (params.size >= 255)
@@ -52,13 +52,17 @@ class Parser(private val tokens: Seq[Token]) {
         if `match`(COMMA) then parseParameters(all)
         else all
 
-     val name = consume(IDENTIFIER, s"Expect $kind name")
      consume(LEFT_PAREN, s"Expect '(' after $kind name.")
      val params = if !check(RIGHT_PAREN) then parseParameters(Nil) else Nil
      val paren  = consume(RIGHT_PAREN, "Expect ')' after params.")
 
      consume(LEFT_BRACE, s"Expect '{' before $kind body.")
-     Stmt.Function(name, params, block())
+     (params, block())
+
+  private def funDeclaration(kind: String): Stmt =
+     val name            = consume(IDENTIFIER, s"Expect $kind name")
+     val (params, block) = lambda(kind)
+     Stmt.Function(name, params, block)
 
   private def varDeclaration(): Stmt =
      val name = consume(IDENTIFIER, "Expect variable name.")
@@ -141,12 +145,13 @@ class Parser(private val tokens: Seq[Token]) {
      val expr = expression()
      consume(SEMICOLON, "Expect ';' after value.")
      Stmt.Print(expr)
-     
+
   private def returnStatement() =
-    val keyword = previous()
-    val returnValue = if !check(SEMICOLON) then expression() else Expr.Literal(Lit.Nil)
-    consume(SEMICOLON, "Expect ',' after return value.")
-    Stmt.Return(keyword, returnValue)
+     val keyword = previous()
+     val returnValue =
+       if !check(SEMICOLON) then expression() else Expr.Literal(Lit.Nil)
+     consume(SEMICOLON, "Expect ',' after return value.")
+     Stmt.Return(keyword, returnValue)
 
   private def whileStatement() =
      consume(LEFT_PAREN, "Expect '(' after 'while'.")
@@ -279,10 +284,14 @@ class Parser(private val tokens: Seq[Token]) {
      val res = peek().tokenType match
         case FALSE => Literal(Lit.Bool(false))
         case TRUE  => Literal(Lit.Bool(true))
-        case NUMBER(v) =>
-          Literal(Lit.Number(v))
+        case NUMBER(v) => Literal(Lit.Number(v))
         case STRING(v) => Literal(Lit.Str(v))
         case NIL       => Literal(Lit.Nil)
+        case FUN =>
+          advance()
+          val (params, block) = lambda("anonymous function")
+          current = current - 1
+          Lambda(params, block)
         case IDENTIFIER =>
           Variable(peek())
         case LEFT_PAREN =>
@@ -290,7 +299,7 @@ class Parser(private val tokens: Seq[Token]) {
           val expr = expression()
           satisfies(RIGHT_PAREN, "Expect ')' after expression.")
           Grouping(expr)
-        case _ =>
+        case x =>
           throw error(peek(), "Expect expression.")
 
      advance()

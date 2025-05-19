@@ -3,13 +3,14 @@ package interpreter
 import error.{RuntimeError, runtimeError}
 import ast.Fn.Lox
 import ast.*
-import interpreter.Return
+import interpreter.Globals.globals
 import token.TokenType.*
 import token.{Token, TokenType}
 
 import scala.annotation.tailrec
+import scala.collection.mutable
 
-class Interpreter(val environment: Environment)
+class Interpreter(val environment: Environment, val locals: mutable.Map[Expr, Integer] = mutable.HashMap())
     extends VisitorExpr[Either[RuntimeError, Lit]]
     with VisitorStmt[Either[RuntimeError, Unit]]:
 
@@ -21,13 +22,16 @@ class Interpreter(val environment: Environment)
       go(statements)
 
    private def execute(stmt: Stmt): Either[RuntimeError, Unit] =
-     VisitorStmt.accept(stmt, Interpreter(environment))
+     VisitorStmt.accept(stmt, Interpreter(environment, locals))
+
+   def resolve(expr: Expr, depth: Int): Option[Integer] =
+     locals.put(expr, depth)
 
    override def visitBlock(
        stmt: Stmt.Block
    ): Either[RuntimeError, Unit] =
       val temp            = Environment(Some(environment))
-      val tempInterpreter = Interpreter(temp)
+      val tempInterpreter = Interpreter(temp, locals)
       tempInterpreter.executeBlock(stmt.statements)
 
    private def executeBlock(
@@ -45,7 +49,6 @@ class Interpreter(val environment: Environment)
    override def visitReturnStatement(
        r: Stmt.Return
    ): Either[RuntimeError, Unit] =
-     // TODO: refactor somehow... maybe try modelling it as an expression?
      throw Return(evaluate(r.value))
 
    override def visitVarStmt(stmt: Stmt.Var): Either[RuntimeError, Unit] =
@@ -102,14 +105,26 @@ class Interpreter(val environment: Environment)
    ): Either[RuntimeError, Lit] =
      for value <- evaluate(expr.value)
      yield
-        environment.assign(expr.name, value)
+        locals.get(expr) match {
+          case Some(distance) => environment.assignAt(distance, expr.name, value)
+          case None => globals.assign(expr.name, value)
+        }
         value
 
    override def visitLambda(f: Expr.Lambda): Either[RuntimeError, Lit] =
      Right(Lit.Callable(Fn.Lox(f.body, f.params, this.environment)))
 
    override def visitVariable(expr: Expr.Variable): Either[RuntimeError, Lit] =
-     environment.get(expr.name)
+     lookupVariable(expr.name, expr)
+
+   private def lookupVariable(
+       name: Token,
+       expr: Expr.Variable
+   ): Either[RuntimeError, Lit] =
+     locals
+       .get(expr)
+       .map(d => environment.getAt(d, name))
+       .getOrElse(globals.get(name))
 
    override def visitBinary(b: Expr.Binary): Either[RuntimeError, Lit] =
       val left  = evaluate(b.left)
@@ -222,7 +237,7 @@ class Interpreter(val environment: Environment)
         case (token, lit) =>
           environment.define(token.lexeme, lit)
       }
-      val interpreter = Interpreter(environment)
+      val interpreter = Interpreter(environment, locals)
       try interpreter.executeBlock(function.body).map(_ => Lit.Nil)
       catch case e: Return => e.value
 
@@ -306,4 +321,3 @@ class Interpreter(val environment: Environment)
             case Fn.Lox(_, _, _)  => "<fn lox>"
             case Fn.Native(fn, _) => "<fn native>"
           }
-

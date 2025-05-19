@@ -1,6 +1,7 @@
 import error.{hadError, hadRuntimeError}
-import interpreter.{Environment, Globals, Interpreter}
+import interpreter.{Globals, Interpreter}
 import parser.Parser
+import resolver.Resolver
 import scanner.Scanner
 import token.Token
 
@@ -45,5 +46,7 @@ def run(source: String): Unit =
    val statements         = parser.parse()
    if hadError then ()
    else
-      val env = Environment(Some(Globals.globals))
-      Interpreter(env).interpret(statements)
+      val interpreter = Interpreter(Globals.globals)
+      val resolver    = Resolver(interpreter)
+      resolver.resolve(statements)
+      if hadError then () else interpreter.interpret(statements)

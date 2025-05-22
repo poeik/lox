@@ -7,7 +7,7 @@ import token.Token
 import scala.collection.mutable
 
 enum Fn:
-    case Lox(body: List[Stmt], params: List[Token], closure: Environment)
+    case Lox(body: List[Stmt], params: List[Token], closure: Environment, isInitializer: Boolean)
     case Class(name: String, methods: Map[String, Fn.Lox])
     case Native(
         fn: (

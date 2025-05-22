@@ -1,6 +1,6 @@
 package interpreter
 
-import error.{ runtimeError, RuntimeError }
+import error.{ runtimeError, thisToken, RuntimeError }
 import ast.Fn.Lox
 import ast.*
 import interpreter.Globals.globals
@@ -43,7 +43,12 @@ class Interpreter(
         environment.define(stmt.name.lexeme, Lit.Nil)
         val methods =
           stmt.methods.foldLeft[Map[String, Fn.Lox]](Map())((methods, cur) =>
-              val fn: Fn.Lox = Fn.Lox(cur.body, cur.params, environment)
+              val fn: Fn.Lox = Fn.Lox(
+                cur.body,
+                cur.params,
+                environment,
+                cur.name.lexeme.equals("init")
+              )
               methods + (cur.name.lexeme -> fn)
           )
         val klass = Lit.Callable(Fn.Class(stmt.name.lexeme, methods))
@@ -111,7 +116,9 @@ class Interpreter(
       Right(
         environment.define(
           f.name.lexeme,
-          Lit.Callable(Fn.Lox(f.body, f.params, this.environment))
+          Lit.Callable(
+            Fn.Lox(f.body, f.params, this.environment, isInitializer = false)
+          )
         )
       )
 
@@ -128,7 +135,7 @@ class Interpreter(
           value
 
     override def visitLambda(f: Expr.Lambda): Either[RuntimeError, Lit] =
-      Right(Lit.Callable(Fn.Lox(f.body, f.params, this.environment)))
+      Right(Lit.Callable(Fn.Lox(f.body, f.params, this.environment, false)))
 
     override def visitVariable(expr: Expr.Variable): Either[RuntimeError, Lit] =
       lookupVariable(expr.name, expr)
@@ -209,7 +216,6 @@ class Interpreter(
 
     override def visitThis(expr: Expr.This): Either[RuntimeError, Lit] =
       lookupVariable(expr.keyword, expr)
-    
 
     override def visitUnary(expr: Expr.Unary): Either[RuntimeError, Lit] =
         val right = evaluate(expr.right)
@@ -233,7 +239,7 @@ class Interpreter(
           }
           result <- callee match {
             case Lit.Callable(fn) =>
-              val amtParams = amtOfParams(fn)
+              val amtParams = arity(fn)
               if amtParams != args.size then
                   Left(
                     RuntimeError(
@@ -243,11 +249,12 @@ class Interpreter(
                   )
               else
                   fn match {
-                    case loxFn @ Fn.Lox(body, _, _) =>
-                      callLox(loxFn, args)
+                    case loxFn @ Fn.Lox(body, _, closure, isInitializer) =>
+                      if isInitializer then closure.getAt(0, thisToken)
+                      else callLox(loxFn, args)
                     case nativeFn @ Fn.Native(fn, _) =>
                       callNative(nativeFn, args)
-                    case klass @ Fn.Class(_, _) => callClass(klass)
+                    case klass @ Fn.Class(_, _) => callClass(klass, args)
                   }
             case _ =>
               Left(
@@ -266,7 +273,7 @@ class Interpreter(
                   .orElse(
                     instance.klass.methods
                       .get(expr.name.lexeme)
-                      .map(bindThis.curried(instance))
+                      .map(fn => Lit.Callable(bindThis(instance, fn)))
                   )
                   .toRight(
                     RuntimeError(
@@ -277,21 +284,32 @@ class Interpreter(
               case _ => Left(RuntimeError(expr.name, ""))
       yield result
 
-    private def bindThis(instance: Lit.Instance, fn: Fn.Lox): Lit.Callable =
+    private def bindThis(instance: Lit.Instance, fn: Fn.Lox): Fn.Lox =
         val environment = Environment(Some(fn.closure))
         environment.define("this", instance)
-        Lit.Callable(Fn.Lox(fn.body, fn.params, environment))
+        Fn.Lox(fn.body, fn.params, environment, fn.isInitializer)
 
-    private def amtOfParams(fn: Fn) =
-      fn match {
-        case Fn.Lox(body, params, _) => params.size
-        case Fn.Native(fn, arity)    => arity
-        case Fn.Class(_, _)          => 0
-      }
+    private def arity(fn: Fn) =
+      fn match
+          case Fn.Lox(body, params, _, _) => params.size
+          case Fn.Native(fn, arity)       => arity
+          case Fn.Class(_, methods) =>
+            methods.get("init").map(f => f.params.size).getOrElse(0)
 
-    private def callClass(klass: Fn.Class) = Right(
-      Lit.Instance(klass, mutable.HashMap())
-    )
+    private def callClass(
+        klass:  Fn.Class,
+        params: List[Lit]
+    ): Either[RuntimeError, Lit] =
+        val instance: Lit.Instance = Lit.Instance(klass, mutable.HashMap())
+        val initializer            = klass.methods.get("init")
+
+        initializer
+          .map { init =>
+              val boundInitializer = bindThis(instance, init)
+              callLox(boundInitializer, params)
+                .map(_ => instance)
+          }
+          .getOrElse(Right(instance))
 
     private def callLox(
         function: Fn.Lox,
@@ -304,7 +322,11 @@ class Interpreter(
         }
         val interpreter = Interpreter(environment, locals)
         try interpreter.executeBlock(function.body).map(_ => Lit.Nil)
-        catch case e: Return => e.value
+        catch
+            case e: Return =>
+              if function.isInitializer then
+                  function.closure.getAt(0, thisToken)
+              else e.value
 
     private def callNative(function: Fn.Native, args: List[Lit]) =
       function.fn(this, args)
@@ -383,8 +405,9 @@ class Interpreter(
           case Lit.Bool(value) => value.toString
           case ast.Lit.Callable(f) =>
             f match {
-              case Fn.Lox(_, _, _)   => "<fn lox>"
-              case Fn.Native(fn, _)  => "<fn native>"
-              case Fn.Class(name, _) => name
+              case Fn.Lox(_, _, _, false) => "<fn lox>"
+              case Fn.Lox(_, _, _, true)  => "<ctor>"
+              case Fn.Native(fn, _)       => "<fn native>"
+              case Fn.Class(name, _)      => name
             }
           case ast.Lit.Instance(klass, _) => klass.name ++ " instance"

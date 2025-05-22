@@ -4,13 +4,12 @@ import error as reporting
 
 import ast.{ Expr, Stmt, VisitorExpr, VisitorStmt }
 import interpreter.Interpreter
-import resolver.FunctionType.Method
 import token.Token
 
 import scala.collection.mutable
 
 private enum FunctionType:
-    case None, Function, Method
+    case None, Function, Method, Initializer
 
 private enum ClassType:
     case None, Class
@@ -39,7 +38,10 @@ class Resolver(private val interpreter: Interpreter)
 
       scopes.top.put("this", true)
       stmt.methods.foreach(method =>
-        resolveFunction(method.params, method.body, Method)
+          val functionType =
+            if method.name.lexeme.equals("init") then FunctionType.Initializer
+            else FunctionType.Method
+          resolveFunction(method.params, method.body, functionType)
       )
 
       define(stmt.name)
@@ -58,9 +60,13 @@ class Resolver(private val interpreter: Interpreter)
   override def visitPrint(stmt: Stmt.Print): Unit = resolve(stmt.expr)
 
   override def visitReturnStatement(stmt: Stmt.Return): Unit =
-      if (currentFunction == FunctionType.None)
+    currentFunction match {
+      case FunctionType.None =>
         reporting.error(stmt.keyword, "Can't return from top-level code.")
-      resolve(stmt.value)
+      case FunctionType.Initializer =>
+        reporting.error(stmt.keyword, "Can't return from an initializer.")
+      case _ => resolve(stmt.value)
+    }
 
   override def visitFunctionStatement(stmt: Stmt.Function): Unit =
       declare(stmt.name)

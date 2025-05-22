@@ -1,10 +1,12 @@
 package error
 
-import token.Token
+import token.{Token, TokenType}
 import token.TokenType.EOF
 
 var hadError: Boolean        = false
 var hadRuntimeError: Boolean = false
+
+val thisToken = Token(TokenType.THIS, "this", 0)
 
 def error(line: Int, message: String): Unit =
   report(line, "", message)

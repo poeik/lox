@@ -280,7 +280,7 @@ class Parser(private val tokens: Seq[Token]) {
         if `match`(LEFT_PAREN) then go(finishCall(expr))
         else if `match`(DOT) then
             val name = consume(IDENTIFIER, "Expect property name after '.'.")
-            Expr.Get(expr, name)
+            go(Expr.Get(expr, name))
         else expr
 
       go(primary())

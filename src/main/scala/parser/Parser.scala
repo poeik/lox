@@ -34,46 +34,46 @@ class Parser(private val tokens: Seq[Token]) {
 
   private def declaration(): Stmt =
     try
-       if `match`(FUN) then funDeclaration("function")
-       else if `match`(VAR) then varDeclaration()
-       else statement()
+        if `match`(FUN) then funDeclaration("function")
+        else if `match`(VAR) then varDeclaration()
+        else statement()
     catch
-       case _ =>
-         synchronize()
-         null // TODO: hmmmmm....
+        case _ =>
+          synchronize()
+          null // TODO: hmmmmm....
 
   private def lambda(kind: String): (List[Token], List[Stmt]) =
-     @tailrec
-     def parseParameters(params: List[Token]): List[Token] =
-        if (params.size >= 255)
-          error(peek(), "Can't have more than 255 arguments.")
-        val token = consume(IDENTIFIER, "Expect parameter name.")
-        val all   = params.appended(token)
-        if `match`(COMMA) then parseParameters(all)
-        else all
+      @tailrec
+      def parseParameters(params: List[Token]): List[Token] =
+          if (params.size >= 255)
+            error(peek(), "Can't have more than 255 arguments.")
+          val token = consume(IDENTIFIER, "Expect parameter name.")
+          val all   = params.appended(token)
+          if `match`(COMMA) then parseParameters(all)
+          else all
 
-     consume(LEFT_PAREN, s"Expect '(' after $kind name.")
-     val params = if !check(RIGHT_PAREN) then parseParameters(Nil) else Nil
-     val paren  = consume(RIGHT_PAREN, "Expect ')' after params.")
+      consume(LEFT_PAREN, s"Expect '(' after $kind name.")
+      val params = if !check(RIGHT_PAREN) then parseParameters(Nil) else Nil
+      val paren  = consume(RIGHT_PAREN, "Expect ')' after params.")
 
-     consume(LEFT_BRACE, s"Expect '{' before $kind body.")
-     (params, block())
+      consume(LEFT_BRACE, s"Expect '{' before $kind body.")
+      (params, block())
 
   private def funDeclaration(kind: String): Stmt =
-     val name            = consume(IDENTIFIER, s"Expect $kind name")
-     val (params, block) = lambda(kind)
-     Stmt.Function(name, params, block)
+      val name            = consume(IDENTIFIER, s"Expect $kind name")
+      val (params, block) = lambda(kind)
+      Stmt.Function(name, params, block)
 
   private def varDeclaration(): Stmt =
-     val name = consume(IDENTIFIER, "Expect variable name.")
+      val name = consume(IDENTIFIER, "Expect variable name.")
 
-     val initializer =
-       if (`match`(EQUAL))
-         expression()
-       else Literal(Lit.Nil)
+      val initializer =
+        if (`match`(EQUAL))
+          expression()
+        else Literal(Lit.Nil)
 
-     consume(SEMICOLON, "Expect ';' after variable decalation")
-     Var(name, initializer)
+      consume(SEMICOLON, "Expect ';' after variable decalation")
+      Var(name, initializer)
 
   private def statement(): Stmt =
     if (`match`(FOR)) forStatement()
@@ -94,99 +94,99 @@ class Parser(private val tokens: Seq[Token]) {
     * for loops!
     */
   private def forStatement(): Stmt =
-     consume(LEFT_PAREN, "Expect '(' after 'for'.")
-     val initializer =
-       if `match`(SEMICOLON) then None
-       else if `match`(VAR) then Some(varDeclaration())
-       else Some(expressionStatement())
+      consume(LEFT_PAREN, "Expect '(' after 'for'.")
+      val initializer =
+        if `match`(SEMICOLON) then None
+        else if `match`(VAR) then Some(varDeclaration())
+        else Some(expressionStatement())
 
-     val optCondition = if !check(SEMICOLON) then Some(expression()) else None
-     consume(SEMICOLON, "Expect ';' after loop condition")
+      val optCondition = if !check(SEMICOLON) then Some(expression()) else None
+      consume(SEMICOLON, "Expect ';' after loop condition")
 
-     val increment = if !check(RIGHT_PAREN) then Some(expression()) else None
-     consume(RIGHT_PAREN, "Expect ')' after for clauses")
+      val increment = if !check(RIGHT_PAREN) then Some(expression()) else None
+      consume(RIGHT_PAREN, "Expect ')' after for clauses")
 
-     val body = increment match
-        case Some(value) =>
-          Stmt.Block(List(statement(), Stmt.Expression(value)))
-        case None => statement()
+      val body = increment match
+          case Some(value) =>
+            Stmt.Block(List(statement(), Stmt.Expression(value)))
+          case None => statement()
 
-     val condition = optCondition.getOrElse(Expr.Literal(Bool(true)))
-     val loop      = Stmt.While(condition, body)
+      val condition = optCondition.getOrElse(Expr.Literal(Bool(true)))
+      val loop      = Stmt.While(condition, body)
 
-     initializer match
-        case Some(value) => Stmt.Block(List(value, loop))
-        case None        => loop
+      initializer match
+          case Some(value) => Stmt.Block(List(value, loop))
+          case None        => loop
 
   private def block(): List[Stmt] =
-     @tailrec
-     def go(acc: List[Stmt]): List[Stmt] =
-       // the check for isAtEnd is necessary because, the user might accidentally create a block that never ends.
-       if (!check(RIGHT_BRACE) && !isAtEnd) go(declaration() :: acc)
-       else
-          consume(RIGHT_BRACE, "Expect '}' after block.")
-          acc.reverse
+      @tailrec
+      def go(acc: List[Stmt]): List[Stmt] =
+        // the check for isAtEnd is necessary because, the user might accidentally create a block that never ends.
+        if (!check(RIGHT_BRACE) && !isAtEnd) go(declaration() :: acc)
+        else
+            consume(RIGHT_BRACE, "Expect '}' after block.")
+            acc.reverse
 
-     go(Nil)
+      go(Nil)
 
   private def ifStatement() =
-     consume(LEFT_PAREN, "Expect '(' after 'if'.")
-     val condition = expression()
-     consume(RIGHT_PAREN, "Expect ')' after if condition.")
+      consume(LEFT_PAREN, "Expect '(' after 'if'.")
+      val condition = expression()
+      consume(RIGHT_PAREN, "Expect ')' after if condition.")
 
-     val thenBranch = statement()
-     val elseBranch =
-       if (`match`(ELSE)) Some(statement())
-       else None
+      val thenBranch = statement()
+      val elseBranch =
+        if (`match`(ELSE)) Some(statement())
+        else None
 
-     Stmt.If(condition, thenBranch, elseBranch)
+      Stmt.If(condition, thenBranch, elseBranch)
 
   private def printStatement() =
-     val expr = expression()
-     consume(SEMICOLON, "Expect ';' after value.")
-     Stmt.Print(expr)
+      val expr = expression()
+      consume(SEMICOLON, "Expect ';' after value.")
+      Stmt.Print(expr)
 
   private def returnStatement() =
-     val keyword = previous()
-     val returnValue =
-       if !check(SEMICOLON) then expression() else Expr.Literal(Lit.Nil)
-     consume(SEMICOLON, "Expect ',' after return value.")
-     Stmt.Return(keyword, returnValue)
+      val keyword = previous()
+      val returnValue =
+        if !check(SEMICOLON) then expression() else Expr.Literal(Lit.Nil)
+      consume(SEMICOLON, "Expect ',' after return value.")
+      Stmt.Return(keyword, returnValue)
 
   private def whileStatement() =
-     consume(LEFT_PAREN, "Expect '(' after 'while'.")
-     val condition = expression()
-     consume(RIGHT_PAREN, "Expect ')' after condition.")
-     val body = statement()
-     Stmt.While(condition, body)
+      consume(LEFT_PAREN, "Expect '(' after 'while'.")
+      val condition = expression()
+      consume(RIGHT_PAREN, "Expect ')' after condition.")
+      val body = statement()
+      Stmt.While(condition, body)
 
   private def expressionStatement(): Stmt =
-     val expr = expression()
-     consume(SEMICOLON, "Expect ';' after value.")
-     Stmt.Expression(expr)
+      val expr = expression()
+      consume(SEMICOLON, "Expect ';' after value.")
+      Stmt.Expression(expr)
 
   private def expression(): Expr = assignment()
 
   private def assignment(): Expr =
-     val expr = or()
+      val expr = or()
 
-     if `match`(EQUAL) then
-        val equals = previous()
-        val value  = assignment()
-        expr match
-           case Variable(name) => Expr.Assignment(name, value)
-           case _ => throw error(equals, "Invalid assignment target.")
-     else expr
+      if `match`(EQUAL) then
+          val equals = previous()
+          val value  = assignment()
+          expr match
+              case Variable(name) => Expr.Assignment(name, value)
+              case _ => throw error(equals, "Invalid assignment target.")
+      else expr
 
   private def or(): Expr =
-     @tailrec
-     def go(expr: Expr): Expr =
-       if !`match`(OR) then expr
-       else
-          val operator = previous()
-          val right    = and()
-          go(Expr.Logical(expr, operator, right))
-     go(and())
+      @tailrec
+      def go(expr: Expr): Expr =
+        if !`match`(OR) then expr
+        else
+            val operator = previous()
+            val right    = and()
+            go(Expr.Logical(expr, operator, right))
+      go(and())
 
   /** Just for fun: We parse the left hand side then, if we come across "and" we
     * parse the right hand side and store it with the operator in a tuple.
@@ -211,107 +211,107 @@ class Parser(private val tokens: Seq[Token]) {
   }
 
   private def equality(): Expr =
-     var expr = comparison()
+      var expr = comparison()
 
-     while (`match`(BANG_EQUAL, EQUAL_EQUAL))
-        val operator = previous()
-        val right    = comparison()
-        expr = Binary(expr, operator, right)
+      while (`match`(BANG_EQUAL, EQUAL_EQUAL))
+          val operator = previous()
+          val right    = comparison()
+          expr = Binary(expr, operator, right)
 
-     expr
+      expr
 
   private def comparison(): Expr =
-     var expr = term()
+      var expr = term()
 
-     while (`match`(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL))
-        val operator = previous()
-        val right    = term()
-        expr = Binary(expr, operator, right)
+      while (`match`(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL))
+          val operator = previous()
+          val right    = term()
+          expr = Binary(expr, operator, right)
 
-     expr
+      expr
 
   private def term(): Expr =
-     var expr = factor()
+      var expr = factor()
 
-     while (`match`(MINUS, PLUS))
-        val operator = previous()
-        val right    = factor()
-        expr = Binary(expr, operator, right)
+      while (`match`(MINUS, PLUS))
+          val operator = previous()
+          val right    = factor()
+          expr = Binary(expr, operator, right)
 
-     expr
+      expr
 
   private def factor(): Expr =
-     var expr = unary()
-     while (`match`(SLASH, STAR))
-        val operator = previous()
-        val right    = unary()
-        expr = Binary(expr, operator, right)
-     expr
+      var expr = unary()
+      while (`match`(SLASH, STAR))
+          val operator = previous()
+          val right    = unary()
+          expr = Binary(expr, operator, right)
+      expr
 
   private def unary(): Expr =
     peek().tokenType match
-       case BANG | MINUS =>
-         advance()
-         val operator = previous()
-         val right    = unary()
-         Unary(operator, right)
-       case _ => call()
+        case BANG | MINUS =>
+          advance()
+          val operator = previous()
+          val right    = unary()
+          Unary(operator, right)
+        case _ => call()
 
   private def call(): Expr =
-     @tailrec
-     def go(expr: Expr): Expr =
-       if `match`(LEFT_PAREN) then go(finishCall(expr))
-       else expr
+      @tailrec
+      def go(expr: Expr): Expr =
+        if `match`(LEFT_PAREN) then go(finishCall(expr))
+        else expr
 
-     go(primary())
+      go(primary())
 
   private def finishCall(callee: Expr) =
-     @tailrec
-     def parseArguments(args: List[Expr]): List[Expr] =
-        if (args.size >= 255)
-          error(peek(), "Can't have more than 255 arguments.")
-        val expr = expression()
-        val all  = args.appended(expr)
-        if `match`(COMMA) then parseArguments(all)
-        else all
+      @tailrec
+      def parseArguments(args: List[Expr]): List[Expr] =
+          if (args.size >= 255)
+            error(peek(), "Can't have more than 255 arguments.")
+          val expr = expression()
+          val all  = args.appended(expr)
+          if `match`(COMMA) then parseArguments(all)
+          else all
 
-     val args  = if !check(RIGHT_PAREN) then parseArguments(Nil) else Nil
-     val paren = consume(RIGHT_PAREN, "Expect ')' after arguments.")
+      val args  = if !check(RIGHT_PAREN) then parseArguments(Nil) else Nil
+      val paren = consume(RIGHT_PAREN, "Expect ')' after arguments.")
 
-     Expr.Call(callee, paren, args)
+      Expr.Call(callee, paren, args)
 
   private def primary(): Expr =
-     val res = peek().tokenType match
-        case FALSE => Literal(Lit.Bool(false))
-        case TRUE  => Literal(Lit.Bool(true))
-        case NUMBER(v) => Literal(Lit.Number(v))
-        case STRING(v) => Literal(Lit.Str(v))
-        case NIL       => Literal(Lit.Nil)
-        case FUN =>
-          advance()
-          val (params, block) = lambda("anonymous function")
-          current = current - 1
-          Lambda(params, block)
-        case IDENTIFIER =>
-          Variable(peek())
-        case LEFT_PAREN =>
-          advance()
-          val expr = expression()
-          satisfies(RIGHT_PAREN, "Expect ')' after expression.")
-          Grouping(expr)
-        case x =>
-          throw error(peek(), "Expect expression.")
+      val res = peek().tokenType match
+          case FALSE     => Literal(Lit.Bool(false))
+          case TRUE      => Literal(Lit.Bool(true))
+          case NUMBER(v) => Literal(Lit.Number(v))
+          case STRING(v) => Literal(Lit.Str(v))
+          case NIL       => Literal(Lit.Nil)
+          case FUN =>
+            advance()
+            val (params, block) = lambda("anonymous function")
+            current = current - 1
+            Lambda(params, block)
+          case IDENTIFIER =>
+            Variable(peek())
+          case LEFT_PAREN =>
+            advance()
+            val expr = expression()
+            satisfies(RIGHT_PAREN, "Expect ')' after expression.")
+            Grouping(expr)
+          case x =>
+            throw error(peek(), "Expect expression.")
 
-     advance()
-     res
+      advance()
+      res
 
   private def `match`(types: TokenType*): Boolean =
     boundary:
-       for t <- types do
-          if (check(t))
-             advance()
-             boundary.break(true)
-       false
+        for t <- types do
+            if (check(t))
+                advance()
+                boundary.break(true)
+        false
 
   private def previous(): Token = tokens(current - 1)
 
@@ -326,8 +326,8 @@ class Parser(private val tokens: Seq[Token]) {
   private def peek(): Token = tokens(current)
 
   private def advance(): Token =
-     if (!isAtEnd) current = current + 1
-     previous()
+      if (!isAtEnd) current = current + 1
+      previous()
 
   /*
    * Attention:
@@ -339,8 +339,8 @@ class Parser(private val tokens: Seq[Token]) {
     else throw error(peek(), message)
 
   private def consume(tokenType: TokenType, message: String): Token =
-     satisfies(tokenType, message)
-     advance()
+      satisfies(tokenType, message)
+      advance()
 
   private def error(token: Token, message: String): ParseError = {
     reporting.error(token, message)
@@ -348,12 +348,12 @@ class Parser(private val tokens: Seq[Token]) {
   }
 
   private def synchronize(): Unit =
-     advance()
-     while !isAtEnd do
-        if (previous().tokenType == SEMICOLON) return
-        else
-          peek().tokenType match
-             case CLASS | FUN | VAR | FOR | IF | WHILE | PRINT | RETURN =>
-               return
-             case _ => advance()
+      advance()
+      while !isAtEnd do
+          if (previous().tokenType == SEMICOLON) return
+          else
+            peek().tokenType match
+                case CLASS | FUN | VAR | FOR | IF | WHILE | PRINT | RETURN =>
+                  return
+                case _ => advance()
 }

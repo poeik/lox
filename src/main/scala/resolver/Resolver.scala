@@ -9,7 +9,7 @@ import token.Token
 import scala.collection.mutable
 
 private enum FunctionType:
-   case None, Function
+    case None, Function
 
 class Resolver(private val interpreter: Interpreter)
     extends VisitorExpr[Unit]
@@ -38,55 +38,55 @@ class Resolver(private val interpreter: Interpreter)
   override def visitPrint(stmt: Stmt.Print): Unit = resolve(stmt.expr)
 
   override def visitReturnStatement(stmt: Stmt.Return): Unit =
-     if (currentFunction == FunctionType.None)
-       reporting.error(stmt.keyword, "Can't return from top-level code.")
-     resolve(stmt.value)
+      if (currentFunction == FunctionType.None)
+        reporting.error(stmt.keyword, "Can't return from top-level code.")
+      resolve(stmt.value)
 
   override def visitFunctionStatement(stmt: Stmt.Function): Unit =
-     declare(stmt.name)
-     define(stmt.name)
+      declare(stmt.name)
+      define(stmt.name)
 
-     resolveFunction(stmt.params, stmt.body, FunctionType.Function)
+      resolveFunction(stmt.params, stmt.body, FunctionType.Function)
 
   override def visitVarStmt(stmt: Stmt.Var): Unit =
-     declare(stmt.name)
-     resolve(stmt.initializer)
-     define(stmt.name)
+      declare(stmt.name)
+      resolve(stmt.initializer)
+      define(stmt.name)
 
   override def visitWhile(stmt: Stmt.While): Unit =
-     resolve(stmt.condition)
-     resolve(stmt.body)
+      resolve(stmt.condition)
+      resolve(stmt.body)
 
   override def visitAssignExpr(expr: Expr.Assignment): Unit =
-     resolve(expr.value)
-     resolveLocal(expr, expr.name)
+      resolve(expr.value)
+      resolveLocal(expr, expr.name)
 
   override def visitBinary(expr: Expr.Binary): Unit =
-     resolve(expr.left)
-     resolve(expr.right)
+      resolve(expr.left)
+      resolve(expr.right)
 
   override def visitCallExpr(expr: Expr.Call): Unit =
-     resolve(expr.callee)
-     expr.arguments.foreach(e => resolve(e))
+      resolve(expr.callee)
+      expr.arguments.foreach(e => resolve(e))
 
   override def visitGrouping(expr: Expr.Grouping): Unit = resolve(expr.expr)
 
   override def visitLiteral(expr: Expr.Literal): Unit = ()
 
   override def visitLogicalExpr(expr: Expr.Logical): Unit =
-     resolve(expr.left)
-     resolve(expr.right)
+      resolve(expr.left)
+      resolve(expr.right)
 
   override def visitUnary(expr: Expr.Unary): Unit = resolve(expr.right)
 
   override def visitVariable(expr: Expr.Variable): Unit =
-     if (scopes.nonEmpty && !scopes.top.getOrElse(expr.name.lexeme, true))
-       reporting.error(
-         expr.name,
-         "Can't read local variable in its own initializer."
-       )
+      if (scopes.nonEmpty && !scopes.top.getOrElse(expr.name.lexeme, true))
+        reporting.error(
+          expr.name,
+          "Can't read local variable in its own initializer."
+        )
 
-     resolveLocal(expr, expr.name)
+      resolveLocal(expr, expr.name)
 
   override def visitLambda(expr: Expr.Lambda): Unit =
     resolveFunction(expr.params, expr.body, FunctionType.Function)
@@ -108,8 +108,8 @@ class Resolver(private val interpreter: Interpreter)
 
     beginScope()
     params.foreach { p =>
-       declare(p)
-       define(p)
+        declare(p)
+        define(p)
     }
     resolve(body)
     endScope()
@@ -123,20 +123,20 @@ class Resolver(private val interpreter: Interpreter)
 
   private def declare(name: Token): Unit =
     if scopes.nonEmpty then
-       if (scopes.top.contains(name.lexeme))
-          reporting.error(
-            name,
-            "Already a variable with this name in this scope."
-          )
-          val scope = scopes.top
-          scope.put(name.lexeme, false)
+        if (scopes.top.contains(name.lexeme))
+            reporting.error(
+              name,
+              "Already a variable with this name in this scope."
+            )
+            val scope = scopes.top
+            scope.put(name.lexeme, false)
 
   private def define(name: Token): Unit =
     if scopes.nonEmpty
     then scopes.top.update(name.lexeme, true)
 
   private def resolveLocal(expr: Expr, name: Token): Unit =
-    val depth = scopes.indexWhere(_.contains(name.lexeme))
+      val depth = scopes.indexWhere(_.contains(name.lexeme))
       if (depth >= 0) {
         interpreter.resolve(expr, depth)
       }

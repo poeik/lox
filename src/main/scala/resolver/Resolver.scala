@@ -12,6 +12,9 @@ import scala.collection.mutable
 private enum FunctionType:
     case None, Function, Method
 
+private enum ClassType:
+    case None, Class
+
 class Resolver(private val interpreter: Interpreter)
     extends VisitorExpr[Unit]
     with VisitorStmt[Unit] {
@@ -20,6 +23,7 @@ class Resolver(private val interpreter: Interpreter)
     mutable.Stack.empty
 
   private var currentFunction = FunctionType.None
+  private var currentClass    = ClassType.None
 
   override def visitBlock(b: Stmt.Block): Unit =
       beginScope()
@@ -27,14 +31,20 @@ class Resolver(private val interpreter: Interpreter)
       endScope()
 
   override def visitClassStatement(stmt: Stmt.Class): Unit =
+      val enclosingClass = currentClass
+      currentClass = ClassType.Class
+
       declare(stmt.name)
       beginScope()
+
       scopes.top.put("this", true)
       stmt.methods.foreach(method =>
         resolveFunction(method.params, method.body, Method)
       )
+
       define(stmt.name)
       endScope()
+      currentClass = enclosingClass;
 
   override def visitExpressionStatement(stmt: Stmt.Expression): Unit =
     resolve(stmt.expr)
@@ -95,7 +105,11 @@ class Resolver(private val interpreter: Interpreter)
       resolve(expr.obj)
 
   override def visitThis(expr: Expr.This): Unit =
-    resolveLocal(expr, expr.keyword)
+    currentClass match {
+      case ClassType.None =>
+        reporting.error(expr.keyword, "Can't use 'this' outside of a class.")
+      case ClassType.Class => resolveLocal(expr, expr.keyword)
+    }
 
   override def visitUnary(expr: Expr.Unary): Unit = resolve(expr.right)
 

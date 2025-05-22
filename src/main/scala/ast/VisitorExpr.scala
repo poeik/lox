@@ -12,6 +12,7 @@ trait VisitorExpr[A]:
     def visitLambda(f:      Expr.Lambda): A
     def visitGet(expr:      Expr.Get): A
     def visitSet(expr:      Expr.Set): A
+    def visitThis(expr:     Expr.This): A
 
 object VisitorExpr {
   def accept[A](ex: Expr, visitor: VisitorExpr[A]): A = ex match
@@ -26,4 +27,5 @@ object VisitorExpr {
       case expr: Expr.Lambda     => visitor.visitLambda(expr)
       case expr: Expr.Get        => visitor.visitGet(expr)
       case expr: Expr.Set        => visitor.visitSet(expr)
+      case expr: Expr.This       => visitor.visitThis(expr)
 }

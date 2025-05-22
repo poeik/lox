@@ -28,10 +28,13 @@ class Resolver(private val interpreter: Interpreter)
 
   override def visitClassStatement(stmt: Stmt.Class): Unit =
       declare(stmt.name)
+      beginScope()
+      scopes.top.put("this", true)
       stmt.methods.foreach(method =>
         resolveFunction(method.params, method.body, Method)
       )
       define(stmt.name)
+      endScope()
 
   override def visitExpressionStatement(stmt: Stmt.Expression): Unit =
     resolve(stmt.expr)
@@ -90,6 +93,9 @@ class Resolver(private val interpreter: Interpreter)
   override def visitSet(expr: Expr.Set): Unit =
       resolve(expr.value)
       resolve(expr.obj)
+
+  override def visitThis(expr: Expr.This): Unit =
+    resolveLocal(expr, expr.keyword)
 
   override def visitUnary(expr: Expr.Unary): Unit = resolve(expr.right)
 

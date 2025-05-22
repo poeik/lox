@@ -312,6 +312,7 @@ class Parser(private val tokens: Seq[Token]) {
             val (params, block) = lambda("anonymous function")
             current = current - 1
             Lambda(params, block)
+          case THIS => This(peek())
           case IDENTIFIER =>
             Variable(peek())
           case LEFT_PAREN =>

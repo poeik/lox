@@ -41,12 +41,11 @@ class Interpreter(
         stmt: Stmt.Class
     ): Either[RuntimeError, Unit] =
         environment.define(stmt.name.lexeme, Lit.Nil)
-        val methods = stmt.methods.foldLeft[Map[String, Lit.Callable]](Map())(
-          (methods, cur) =>
-              val fn: Lit.Callable =
-                Lit.Callable(Fn.Lox(cur.body, cur.params, environment))
+        val methods =
+          stmt.methods.foldLeft[Map[String, Fn.Lox]](Map())((methods, cur) =>
+              val fn: Fn.Lox = Fn.Lox(cur.body, cur.params, environment)
               methods + (cur.name.lexeme -> fn)
-        )
+          )
         val klass = Lit.Callable(Fn.Class(stmt.name.lexeme, methods))
         environment.assign(stmt.name, klass).map(_ => ())
 
@@ -136,7 +135,7 @@ class Interpreter(
 
     private def lookupVariable(
         name: Token,
-        expr: Expr.Variable
+        expr: Expr.Variable | Expr.This
     ): Either[RuntimeError, Lit] =
       locals
         .get(expr)
@@ -208,6 +207,10 @@ class Interpreter(
           instance.fields.put(expr.name.lexeme, value)
           value
 
+    override def visitThis(expr: Expr.This): Either[RuntimeError, Lit] =
+      lookupVariable(expr.keyword, expr)
+    
+
     override def visitUnary(expr: Expr.Unary): Either[RuntimeError, Lit] =
         val right = evaluate(expr.right)
         expr.operator.tokenType match
@@ -260,7 +263,11 @@ class Interpreter(
               case instance @ Lit.Instance(_, fields) =>
                 fields
                   .get(expr.name.lexeme)
-                  .orElse(instance.klass.methods.get(expr.name.lexeme))
+                  .orElse(
+                    instance.klass.methods
+                      .get(expr.name.lexeme)
+                      .map(bindThis.curried(instance))
+                  )
                   .toRight(
                     RuntimeError(
                       expr.name,
@@ -269,6 +276,11 @@ class Interpreter(
                   )
               case _ => Left(RuntimeError(expr.name, ""))
       yield result
+
+    private def bindThis(instance: Lit.Instance, fn: Fn.Lox): Lit.Callable =
+        val environment = Environment(Some(fn.closure))
+        environment.define("this", instance)
+        Lit.Callable(Fn.Lox(fn.body, fn.params, environment))
 
     private def amtOfParams(fn: Fn) =
       fn match {

@@ -41,7 +41,13 @@ class Interpreter(
         stmt: Stmt.Class
     ): Either[RuntimeError, Unit] =
         environment.define(stmt.name.lexeme, Lit.Nil)
-        val klass = Lit.Callable(Fn.Class(0, stmt.name.lexeme))
+        val methods = stmt.methods.foldLeft[Map[String, Lit.Callable]](Map())(
+          (methods, cur) =>
+              val fn: Lit.Callable =
+                Lit.Callable(Fn.Lox(cur.body, cur.params, environment))
+              methods + (cur.name.lexeme -> fn)
+        )
+        val klass = Lit.Callable(Fn.Class(stmt.name.lexeme, methods))
         environment.assign(stmt.name, klass).map(_ => ())
 
     private def executeBlock(
@@ -254,10 +260,11 @@ class Interpreter(
               case instance @ Lit.Instance(_, fields) =>
                 fields
                   .get(expr.name.lexeme)
+                  .orElse(instance.klass.methods.get(expr.name.lexeme))
                   .toRight(
                     RuntimeError(
                       expr.name,
-                      s"Undefined property '${expr.name.lexeme}'."
+                      s"Undefined property/method '${expr.name.lexeme}'."
                     )
                   )
               case _ => Left(RuntimeError(expr.name, ""))
@@ -267,7 +274,7 @@ class Interpreter(
       fn match {
         case Fn.Lox(body, params, _) => params.size
         case Fn.Native(fn, arity)    => arity
-        case Fn.Class(arity, _)      => arity
+        case Fn.Class(_, _)          => 0
       }
 
     private def callClass(klass: Fn.Class) = Right(
@@ -366,6 +373,6 @@ class Interpreter(
             f match {
               case Fn.Lox(_, _, _)   => "<fn lox>"
               case Fn.Native(fn, _)  => "<fn native>"
-              case Fn.Class(_, name) => name
+              case Fn.Class(name, _) => name
             }
           case ast.Lit.Instance(klass, _) => klass.name ++ " instance"

@@ -8,7 +8,7 @@ import scala.collection.mutable
 
 enum Fn:
     case Lox(body: List[Stmt], params: List[Token], closure: Environment)
-    case Class(arity: Int, name: String)
+    case Class(name: String, methods: Map[String, Lit.Callable])
     case Native(
         fn: (
             interpreter: Interpreter,

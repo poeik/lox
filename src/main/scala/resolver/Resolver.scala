@@ -4,12 +4,13 @@ import error as reporting
 
 import ast.{ Expr, Stmt, VisitorExpr, VisitorStmt }
 import interpreter.Interpreter
+import resolver.FunctionType.Method
 import token.Token
 
 import scala.collection.mutable
 
 private enum FunctionType:
-    case None, Function
+    case None, Function, Method
 
 class Resolver(private val interpreter: Interpreter)
     extends VisitorExpr[Unit]
@@ -27,6 +28,9 @@ class Resolver(private val interpreter: Interpreter)
 
   override def visitClassStatement(stmt: Stmt.Class): Unit =
       declare(stmt.name)
+      stmt.methods.foreach(method =>
+        resolveFunction(method.params, method.body, Method)
+      )
       define(stmt.name)
 
   override def visitExpressionStatement(stmt: Stmt.Expression): Unit =
@@ -84,8 +88,8 @@ class Resolver(private val interpreter: Interpreter)
       resolve(expr.right)
 
   override def visitSet(expr: Expr.Set): Unit =
-    resolve(expr.value)
-    resolve(expr.obj)
+      resolve(expr.value)
+      resolve(expr.obj)
 
   override def visitUnary(expr: Expr.Unary): Unit = resolve(expr.right)
 

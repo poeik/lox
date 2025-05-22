@@ -10,16 +10,20 @@ trait VisitorExpr[A]:
     def visitLogicalExpr(a: Expr.Logical): A
     def visitCallExpr(a:    Expr.Call): A
     def visitLambda(f:      Expr.Lambda): A
+    def visitGet(expr:      Expr.Get): A
+    def visitSet(expr:      Expr.Set): A
 
 object VisitorExpr {
   def accept[A](ex: Expr, visitor: VisitorExpr[A]): A = ex match
-      case b: Expr.Binary     => visitor.visitBinary(b)
-      case g: Expr.Grouping   => visitor.visitGrouping(g)
-      case l: Expr.Literal    => visitor.visitLiteral(l)
-      case u: Expr.Unary      => visitor.visitUnary(u)
-      case v: Expr.Variable   => visitor.visitVariable(v)
-      case a: Expr.Assignment => visitor.visitAssignExpr(a)
-      case l: Expr.Logical    => visitor.visitLogicalExpr(l)
-      case c: Expr.Call       => visitor.visitCallExpr(c)
-      case c: Expr.Lambda     => visitor.visitLambda(c)
+      case expr: Expr.Binary     => visitor.visitBinary(expr)
+      case expr: Expr.Grouping   => visitor.visitGrouping(expr)
+      case expr: Expr.Literal    => visitor.visitLiteral(expr)
+      case expr: Expr.Unary      => visitor.visitUnary(expr)
+      case expr: Expr.Variable   => visitor.visitVariable(expr)
+      case expr: Expr.Assignment => visitor.visitAssignExpr(expr)
+      case expr: Expr.Logical    => visitor.visitLogicalExpr(expr)
+      case expr: Expr.Call       => visitor.visitCallExpr(expr)
+      case expr: Expr.Lambda     => visitor.visitLambda(expr)
+      case expr: Expr.Get        => visitor.visitGet(expr)
+      case expr: Expr.Set        => visitor.visitSet(expr)
 }

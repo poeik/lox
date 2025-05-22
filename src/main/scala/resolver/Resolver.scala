@@ -72,6 +72,9 @@ class Resolver(private val interpreter: Interpreter)
       resolve(expr.callee)
       expr.arguments.foreach(e => resolve(e))
 
+  override def visitGet(expr: Expr.Get): Unit =
+    resolve(expr.obj)
+
   override def visitGrouping(expr: Expr.Grouping): Unit = resolve(expr.expr)
 
   override def visitLiteral(expr: Expr.Literal): Unit = ()
@@ -79,6 +82,10 @@ class Resolver(private val interpreter: Interpreter)
   override def visitLogicalExpr(expr: Expr.Logical): Unit =
       resolve(expr.left)
       resolve(expr.right)
+
+  override def visitSet(expr: Expr.Set): Unit =
+    resolve(expr.value)
+    resolve(expr.obj)
 
   override def visitUnary(expr: Expr.Unary): Unit = resolve(expr.right)
 

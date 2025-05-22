@@ -190,6 +190,18 @@ class Interpreter(
         else evaluate(expr.right)
       }
 
+    override def visitSet(expr: Expr.Set): Either[RuntimeError, Lit] =
+      for
+          obj <- evaluate(expr.obj)
+          instance <- obj match
+              case i @ Lit.Instance(_, _) => Right(i)
+              case _ =>
+                Left(RuntimeError(expr.name, "Only instances have fields."))
+          value <- evaluate(expr.value)
+      yield
+          instance.fields.put(expr.name.lexeme, value)
+          value
+
     override def visitUnary(expr: Expr.Unary): Either[RuntimeError, Lit] =
         val right = evaluate(expr.right)
         expr.operator.tokenType match
@@ -235,14 +247,32 @@ class Interpreter(
           }
       yield result
 
+    override def visitGet(expr: Expr.Get): Either[RuntimeError, Lit] =
+      for
+          lit <- evaluate(expr.`obj`)
+          result <- lit match
+              case instance @ Lit.Instance(_, fields) =>
+                fields
+                  .get(expr.name.lexeme)
+                  .toRight(
+                    RuntimeError(
+                      expr.name,
+                      s"Undefined property '${expr.name.lexeme}'."
+                    )
+                  )
+              case _ => Left(RuntimeError(expr.name, ""))
+      yield result
+
     private def amtOfParams(fn: Fn) =
       fn match {
         case Fn.Lox(body, params, _) => params.size
         case Fn.Native(fn, arity)    => arity
-        case Fn.Class(arity, _)         => arity
+        case Fn.Class(arity, _)      => arity
       }
 
-    private def callClass(klass: Fn.Class) = Right(Lit.Instance(klass))
+    private def callClass(klass: Fn.Class) = Right(
+      Lit.Instance(klass, mutable.HashMap())
+    )
 
     private def callLox(
         function: Fn.Lox,
@@ -338,4 +368,4 @@ class Interpreter(
               case Fn.Native(fn, _)  => "<fn native>"
               case Fn.Class(_, name) => name
             }
-          case ast.Lit.Instance(klass) => klass.name ++ " instance"
+          case ast.Lit.Instance(klass, _) => klass.name ++ " instance"

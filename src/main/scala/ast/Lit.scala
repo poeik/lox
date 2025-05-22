@@ -4,6 +4,8 @@ import error.RuntimeError
 import interpreter.{ Environment, Interpreter }
 import token.Token
 
+import scala.collection.mutable
+
 enum Fn:
     case Lox(body: List[Stmt], params: List[Token], closure: Environment)
     case Class(arity: Int, name: String)
@@ -21,4 +23,4 @@ enum Lit:
     case Str(value: String)
     case Bool(value: Boolean)
     case Callable(fn: Fn)
-    case Instance(klass: Fn.Class)
+    case Instance(klass: Fn.Class, fields: mutable.Map[String, Lit])

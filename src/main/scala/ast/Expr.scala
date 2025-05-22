@@ -11,4 +11,6 @@ enum Expr:
     case Variable(name: Token)
     case Assignment(name: Token, value: Expr)
     case Logical(left: Expr, operator: Token, right: Expr)
+    case Set(obj: Expr, name: Token, value: Expr)
     case Lambda(params: List[Token], body: List[Stmt])
+    case Get(obj: Expr, name: Token)

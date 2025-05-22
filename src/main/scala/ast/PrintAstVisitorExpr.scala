@@ -26,5 +26,10 @@ object PrintAstVisitorExpr extends VisitorExpr[String]:
 
     override def visitLambda(f: Expr.Lambda): String = "<lambda fn>"
 
+    override def visitGet(expr: Expr.Get): String = s"${expr.name.lexeme}"
+
+    override def visitSet(expr: Expr.Set): String =
+      s"${expr.name.lexeme} = ${VisitorExpr.accept(expr.value, this)}"
+
 def paren(name: String, exprs: Expr*): String =
   s"($name${exprs.map(expr => s" ${VisitorExpr.accept(expr, PrintAstVisitorExpr)}").mkString("")})"

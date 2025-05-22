@@ -44,18 +44,18 @@ class Parser(private val tokens: Seq[Token]) {
           null // TODO: hmmmmm....
 
   private def classDeclaration(): Stmt =
-    val name = consume(IDENTIFIER, "Expect class name.")
-    consume(LEFT_BRACE, "Expect '{' before class body.")
+      val name = consume(IDENTIFIER, "Expect class name.")
+      consume(LEFT_BRACE, "Expect '{' before class body.")
 
-    val methods = Iterator
+      val methods = Iterator
         .continually(())
         .takeWhile(_ => !check(RIGHT_BRACE) && !isAtEnd)
         .map(_ => funDeclaration("method"))
         .toList
 
-    consume(RIGHT_BRACE, "Expect '}' after class body.")
+      consume(RIGHT_BRACE, "Expect '}' after class body.")
 
-    Stmt.Class(name, methods)
+      Stmt.Class(name, methods)
 
   private def lambda(kind: String): (List[Token], List[Stmt]) =
       @tailrec
@@ -190,6 +190,8 @@ class Parser(private val tokens: Seq[Token]) {
           val value  = assignment()
           expr match
               case Variable(name) => Expr.Assignment(name, value)
+              case get @ Get(_, _) =>
+                Expr.Set(get.obj, get.name, value)
               case _ => throw error(equals, "Invalid assignment target.")
       else expr
 
@@ -276,6 +278,9 @@ class Parser(private val tokens: Seq[Token]) {
       @tailrec
       def go(expr: Expr): Expr =
         if `match`(LEFT_PAREN) then go(finishCall(expr))
+        else if `match`(DOT) then
+            val name = consume(IDENTIFIER, "Expect property name after '.'.")
+            Expr.Get(expr, name)
         else expr
 
       go(primary())

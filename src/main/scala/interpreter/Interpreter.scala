@@ -37,6 +37,11 @@ class Interpreter(
         val tempInterpreter = Interpreter(temp, locals)
         tempInterpreter.executeBlock(stmt.statements)
 
+    override def visitClassStatement(stmt: Stmt.Class): Either[RuntimeError, Unit] =
+      environment.define(stmt.name.lexeme, Lit.Nil)
+      val klass = Lit.Class(stmt.name.lexeme)
+      environment.assign(stmt.name, klass).map(_ => ())
+
     private def executeBlock(
         statements: List[Stmt]
     ): Either[RuntimeError, Unit] =
@@ -326,3 +331,4 @@ class Interpreter(
               case Fn.Lox(_, _, _)  => "<fn lox>"
               case Fn.Native(fn, _) => "<fn native>"
             }
+          case ast.Lit.Class(name) =>  name

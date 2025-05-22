@@ -9,6 +9,7 @@ trait VisitorStmt[A]:
     def visitWhile(w:               Stmt.While): A
     def visitFunctionStatement(f:   Stmt.Function): A
     def visitReturnStatement(r:     Stmt.Return): A
+    def visitClassStatement(stmt:   Stmt.Class): A
 
 object VisitorStmt {
   def accept[A](stmt: Stmt, visitor: VisitorStmt[A]): A = stmt match
@@ -20,4 +21,5 @@ object VisitorStmt {
       case w: Stmt.While      => visitor.visitWhile(w)
       case f: Stmt.Function   => visitor.visitFunctionStatement(f)
       case r: Stmt.Return     => visitor.visitReturnStatement(r)
+      case stmt: Stmt.Class   => visitor.visitClassStatement(stmt)
 }

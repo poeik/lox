@@ -20,3 +20,4 @@ enum Lit:
     case Str(value: String)
     case Bool(value: Boolean)
     case Callable(fn: Fn)
+    case Class(name: String)

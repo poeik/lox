@@ -20,11 +20,14 @@ class Resolver(private val interpreter: Interpreter)
 
   private var currentFunction = FunctionType.None
 
-  override def visitBlock(b: Stmt.Block): Unit = {
-    beginScope()
-    resolve(b.statements)
-    endScope()
-  }
+  override def visitBlock(b: Stmt.Block): Unit =
+      beginScope()
+      resolve(b.statements)
+      endScope()
+
+  override def visitClassStatement(stmt: Stmt.Class): Unit =
+      declare(stmt.name)
+      define(stmt.name)
 
   override def visitExpressionStatement(stmt: Stmt.Expression): Unit =
     resolve(stmt.expr)

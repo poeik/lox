@@ -34,13 +34,28 @@ class Parser(private val tokens: Seq[Token]) {
 
   private def declaration(): Stmt =
     try
-        if `match`(FUN) then funDeclaration("function")
+        if `match`(CLASS) then classDeclaration()
+        else if `match`(FUN) then funDeclaration("function")
         else if `match`(VAR) then varDeclaration()
         else statement()
     catch
         case _ =>
           synchronize()
           null // TODO: hmmmmm....
+
+  private def classDeclaration(): Stmt =
+    val name = consume(IDENTIFIER, "Expect class name.")
+    consume(LEFT_BRACE, "Expect '{' before class body.")
+
+    val methods = Iterator
+        .continually(())
+        .takeWhile(_ => !check(RIGHT_BRACE) && !isAtEnd)
+        .map(_ => funDeclaration("method"))
+        .toList
+
+    consume(RIGHT_BRACE, "Expect '}' after class body.")
+
+    Stmt.Class(name, methods)
 
   private def lambda(kind: String): (List[Token], List[Stmt]) =
       @tailrec
@@ -59,7 +74,7 @@ class Parser(private val tokens: Seq[Token]) {
       consume(LEFT_BRACE, s"Expect '{' before $kind body.")
       (params, block())
 
-  private def funDeclaration(kind: String): Stmt =
+  private def funDeclaration(kind: String): Stmt.Function =
       val name            = consume(IDENTIFIER, s"Expect $kind name")
       val (params, block) = lambda(kind)
       Stmt.Function(name, params, block)

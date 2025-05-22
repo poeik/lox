@@ -37,10 +37,12 @@ class Interpreter(
         val tempInterpreter = Interpreter(temp, locals)
         tempInterpreter.executeBlock(stmt.statements)
 
-    override def visitClassStatement(stmt: Stmt.Class): Either[RuntimeError, Unit] =
-      environment.define(stmt.name.lexeme, Lit.Nil)
-      val klass = Lit.Class(stmt.name.lexeme)
-      environment.assign(stmt.name, klass).map(_ => ())
+    override def visitClassStatement(
+        stmt: Stmt.Class
+    ): Either[RuntimeError, Unit] =
+        environment.define(stmt.name.lexeme, Lit.Nil)
+        val klass = Lit.Callable(Fn.Class(0, stmt.name.lexeme))
+        environment.assign(stmt.name, klass).map(_ => ())
 
     private def executeBlock(
         statements: List[Stmt]
@@ -224,6 +226,7 @@ class Interpreter(
                       callLox(loxFn, args)
                     case nativeFn @ Fn.Native(fn, _) =>
                       callNative(nativeFn, args)
+                    case klass @ Fn.Class(_, _) => callClass(klass)
                   }
             case _ =>
               Left(
@@ -236,7 +239,10 @@ class Interpreter(
       fn match {
         case Fn.Lox(body, params, _) => params.size
         case Fn.Native(fn, arity)    => arity
+        case Fn.Class(arity, _)         => arity
       }
+
+    private def callClass(klass: Fn.Class) = Right(Lit.Instance(klass))
 
     private def callLox(
         function: Fn.Lox,
@@ -328,7 +334,8 @@ class Interpreter(
           case Lit.Bool(value) => value.toString
           case ast.Lit.Callable(f) =>
             f match {
-              case Fn.Lox(_, _, _)  => "<fn lox>"
-              case Fn.Native(fn, _) => "<fn native>"
+              case Fn.Lox(_, _, _)   => "<fn lox>"
+              case Fn.Native(fn, _)  => "<fn native>"
+              case Fn.Class(_, name) => name
             }
-          case ast.Lit.Class(name) =>  name
+          case ast.Lit.Instance(klass) => klass.name ++ " instance"

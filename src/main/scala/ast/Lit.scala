@@ -6,6 +6,7 @@ import token.Token
 
 enum Fn:
     case Lox(body: List[Stmt], params: List[Token], closure: Environment)
+    case Class(arity: Int, name: String)
     case Native(
         fn: (
             interpreter: Interpreter,
@@ -20,4 +21,4 @@ enum Lit:
     case Str(value: String)
     case Bool(value: Boolean)
     case Callable(fn: Fn)
-    case Class(name: String)
+    case Instance(klass: Fn.Class)

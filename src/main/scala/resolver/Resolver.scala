@@ -34,6 +34,15 @@ class Resolver(private val interpreter: Interpreter)
       currentClass = ClassType.Class
 
       declare(stmt.name)
+      define(stmt.name)
+
+      stmt.superclass
+        // check if the class extends itself
+        .filter(s => stmt.name.lexeme.equals(s.name.lexeme))
+        .foreach(s => reporting.error(s.name, "A class can't inherit from itself."))
+
+      stmt.superclass.foreach(resolve)
+
       beginScope()
 
       scopes.top.put("this", true)
@@ -44,7 +53,6 @@ class Resolver(private val interpreter: Interpreter)
           resolveFunction(method.params, method.body, functionType)
       )
 
-      define(stmt.name)
       endScope()
       currentClass = enclosingClass;
 

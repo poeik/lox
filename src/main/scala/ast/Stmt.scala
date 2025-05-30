@@ -11,4 +11,4 @@ enum Stmt:
     case Block(statements: List[Stmt])
     case If(condition: Expr, thenBranch: Stmt, elseBranch: Option[Stmt])
     case While(condition: Expr, body: Stmt)
-    case Class(name: Token, methods: List[Stmt.Function])
+    case Class(name: Token, superclass: Option[Expr.Variable], methods: List[Stmt.Function])

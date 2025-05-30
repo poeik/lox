@@ -40,8 +40,17 @@ class Interpreter(
     override def visitClassStatement(
         stmt: Stmt.Class
     ): Either[RuntimeError, Unit] =
-        environment.define(stmt.name.lexeme, Lit.Nil)
-        val methods =
+        val superclass = stmt.superclass.map { s =>
+          evaluate(s).flatMap {
+            case Lit.Callable(klass @ Fn.Class(_, _, _)) => Right(klass)
+            case illegal =>
+              Left(RuntimeError(s.name, "Superclass must be a class"))
+          }
+        } match
+            case Some(value) => value.map(Some.apply)
+            case None        => Right(None)
+
+        def findMethods(stmt: Stmt.Class) =
           stmt.methods.foldLeft[Map[String, Fn.Lox]](Map())((methods, cur) =>
               val fn: Fn.Lox = Fn.Lox(
                 cur.body,
@@ -51,8 +60,14 @@ class Interpreter(
               )
               methods + (cur.name.lexeme -> fn)
           )
-        val klass = Lit.Callable(Fn.Class(stmt.name.lexeme, methods))
-        environment.assign(stmt.name, klass).map(_ => ())
+
+        for
+            s <- superclass
+            _       = environment.define(stmt.name.lexeme, Lit.Nil)
+            methods = findMethods(stmt)
+            klass   = Lit.Callable(Fn.Class(stmt.name.lexeme, s, methods))
+            _ <- environment.assign(stmt.name, klass)
+        yield ()
 
     private def executeBlock(
         statements: List[Stmt]
@@ -254,7 +269,7 @@ class Interpreter(
                       else callLox(loxFn, args)
                     case nativeFn @ Fn.Native(fn, _) =>
                       callNative(nativeFn, args)
-                    case klass @ Fn.Class(_, _) => callClass(klass, args)
+                    case klass @ Fn.Class(_, _, _) => callClass(klass, args)
                   }
             case _ =>
               Left(
@@ -264,25 +279,29 @@ class Interpreter(
       yield result
 
     override def visitGet(expr: Expr.Get): Either[RuntimeError, Lit] =
-      for
-          lit <- evaluate(expr.`obj`)
-          result <- lit match
-              case instance @ Lit.Instance(_, fields) =>
-                fields
-                  .get(expr.name.lexeme)
-                  .orElse(
-                    instance.klass.methods
-                      .get(expr.name.lexeme)
-                      .map(fn => Lit.Callable(bindThis(instance, fn)))
-                  )
-                  .toRight(
-                    RuntimeError(
-                      expr.name,
-                      s"Undefined property/method '${expr.name.lexeme}'."
+        def findMethod(klass: Fn.Class): Option[Fn.Lox] =
+          klass.methods
+            .get(expr.name.lexeme)
+            .orElse(klass.superclass.flatMap(findMethod))
+
+        for
+            lit <- evaluate(expr.`obj`)
+            result <- lit match
+                case instance @ Lit.Instance(_, fields) =>
+                  fields
+                    .get(expr.name.lexeme)
+                    .orElse(
+                      findMethod(instance.klass)
+                        .map(fn => Lit.Callable(bindThis(instance, fn)))
                     )
-                  )
-              case _ => Left(RuntimeError(expr.name, ""))
-      yield result
+                    .toRight(
+                      RuntimeError(
+                        expr.name,
+                        s"Undefined property/method '${expr.name.lexeme}'."
+                      )
+                    )
+                case _ => Left(RuntimeError(expr.name, ""))
+        yield result
 
     private def bindThis(instance: Lit.Instance, fn: Fn.Lox): Fn.Lox =
         val environment = Environment(Some(fn.closure))
@@ -293,7 +312,7 @@ class Interpreter(
       fn match
           case Fn.Lox(body, params, _, _) => params.size
           case Fn.Native(fn, arity)       => arity
-          case Fn.Class(_, methods) =>
+          case Fn.Class(_, _, methods) =>
             methods.get("init").map(f => f.params.size).getOrElse(0)
 
     private def callClass(
@@ -408,6 +427,6 @@ class Interpreter(
               case Fn.Lox(_, _, _, false) => "<fn lox>"
               case Fn.Lox(_, _, _, true)  => "<ctor>"
               case Fn.Native(fn, _)       => "<fn native>"
-              case Fn.Class(name, _)      => name
+              case Fn.Class(name, _, _)   => name
             }
           case ast.Lit.Instance(klass, _) => klass.name ++ " instance"

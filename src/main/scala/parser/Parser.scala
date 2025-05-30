@@ -45,6 +45,12 @@ class Parser(private val tokens: Seq[Token]) {
 
   private def classDeclaration(): Stmt =
       val name = consume(IDENTIFIER, "Expect class name.")
+
+      val superClass: Option[Expr.Variable] = if `match`(LESS) then
+          consume(IDENTIFIER, "Expect superclass name.")
+          Some(Expr.Variable(previous()))
+      else None
+
       consume(LEFT_BRACE, "Expect '{' before class body.")
 
       val methods = Iterator
@@ -55,7 +61,7 @@ class Parser(private val tokens: Seq[Token]) {
 
       consume(RIGHT_BRACE, "Expect '}' after class body.")
 
-      Stmt.Class(name, methods)
+      Stmt.Class(name, superClass, methods)
 
   private def lambda(kind: String): (List[Token], List[Stmt]) =
       @tailrec

@@ -4,6 +4,7 @@ import error as reporting
 
 import ast.{ Expr, Stmt, VisitorExpr, VisitorStmt }
 import interpreter.Interpreter
+import resolver.ClassType.Subclass
 import token.Token
 
 import scala.collection.mutable
@@ -12,7 +13,7 @@ private enum FunctionType:
     case None, Function, Method, Initializer
 
 private enum ClassType:
-    case None, Class
+    case None, Class, Subclass
 
 class Resolver(private val interpreter: Interpreter)
     extends VisitorExpr[Unit]
@@ -43,7 +44,10 @@ class Resolver(private val interpreter: Interpreter)
           reporting.error(s.name, "A class can't inherit from itself.")
         )
 
-      stmt.superclass.foreach(resolve)
+      stmt.superclass.foreach { s =>
+          currentClass = Subclass
+          resolve(s)
+      }
       stmt.superclass.foreach { _ =>
           beginScope()
           scopes.top.put("super", true)
@@ -126,13 +130,22 @@ class Resolver(private val interpreter: Interpreter)
       resolve(expr.obj)
 
   override def visitSuper(expr: Expr.Super): Unit =
-    resolveLocal(expr, expr.keyword)
+    currentClass match {
+      case ClassType.None =>
+        reporting.error(expr.keyword, "Can't use 'super' outside of a class.")
+      case ClassType.Class =>
+        reporting.error(
+          expr.keyword,
+          "Can't use 'super' inside a class with no superclass."
+        )
+      case Subclass => resolveLocal(expr, expr.keyword)
+    }
 
   override def visitThis(expr: Expr.This): Unit =
     currentClass match {
       case ClassType.None =>
         reporting.error(expr.keyword, "Can't use 'this' outside of a class.")
-      case ClassType.Class => resolveLocal(expr, expr.keyword)
+      case _ => resolveLocal(expr, expr.keyword)
     }
 
   override def visitUnary(expr: Expr.Unary): Unit = resolve(expr.right)

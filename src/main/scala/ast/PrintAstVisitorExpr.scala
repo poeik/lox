@@ -33,5 +33,7 @@ object PrintAstVisitorExpr extends VisitorExpr[String]:
 
     override def visitThis(expr: Expr.This): String = "this"
 
+    override def visitSuper(expr: Expr.Super): String = "super"
+
 def paren(name: String, exprs: Expr*): String =
   s"($name${exprs.map(expr => s" ${VisitorExpr.accept(expr, PrintAstVisitorExpr)}").mkString("")})"

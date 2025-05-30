@@ -3,6 +3,7 @@ package interpreter
 import error.{ runtimeError, thisToken, RuntimeError }
 import ast.Fn.Lox
 import ast.*
+import ast.Lit.Callable
 import interpreter.Globals.globals
 import token.TokenType.*
 import token.{ Token, TokenType }
@@ -50,12 +51,12 @@ class Interpreter(
             case Some(value) => value.map(Some.apply)
             case None        => Right(None)
 
-        def findMethods(stmt: Stmt.Class) =
+        def findMethods(stmt: Stmt.Class, closure: Environment) =
           stmt.methods.foldLeft[Map[String, Fn.Lox]](Map())((methods, cur) =>
               val fn: Fn.Lox = Fn.Lox(
                 cur.body,
                 cur.params,
-                environment,
+                closure,
                 cur.name.lexeme.equals("init")
               )
               methods + (cur.name.lexeme -> fn)
@@ -63,8 +64,14 @@ class Interpreter(
 
         for
             s <- superclass
-            _       = environment.define(stmt.name.lexeme, Lit.Nil)
-            methods = findMethods(stmt)
+            _ = environment.define(stmt.name.lexeme, Lit.Nil)
+            closure =
+              if s.isDefined then
+                  val environment = Environment(Some(this.environment))
+                  environment.define("super", Callable(s.get))
+                  environment
+              else environment
+            methods = findMethods(stmt, closure)
             klass   = Lit.Callable(Fn.Class(stmt.name.lexeme, s, methods))
             _ <- environment.assign(stmt.name, klass)
         yield ()
@@ -229,6 +236,32 @@ class Interpreter(
           instance.fields.put(expr.name.lexeme, value)
           value
 
+    override def visitSuper(expr: Expr.Super): Either[RuntimeError, Lit] =
+        val distance = locals(expr)
+        for
+            superclass <- environment.getAt(distance, expr.keyword).flatMap {
+              case Lit.Callable(klass @ Fn.Class(_, _, _)) => Right(klass)
+              case _ =>
+                Left(RuntimeError(expr.keyword, "super class not found"))
+            }
+            instance <- environment
+              .getAt(distance - 1, Token(TokenType.THIS, "this", -1))
+              .flatMap {
+                case instance @ Lit.Instance(_, _) => Right(instance)
+                case _ => Left(RuntimeError(expr.keyword, "instance not found"))
+              }
+            method <- findMethod(superclass, expr.method.lexeme) match {
+              case Some(value) => Right(bindThis(instance, value))
+              case None =>
+                Left(
+                  RuntimeError(
+                    expr.method,
+                    s"Undefined property '${expr.method.lexeme}'."
+                  )
+                )
+            }
+        yield Lit.Callable(method)
+
     override def visitThis(expr: Expr.This): Either[RuntimeError, Lit] =
       lookupVariable(expr.keyword, expr)
 
@@ -279,29 +312,29 @@ class Interpreter(
       yield result
 
     override def visitGet(expr: Expr.Get): Either[RuntimeError, Lit] =
-        def findMethod(klass: Fn.Class): Option[Fn.Lox] =
-          klass.methods
-            .get(expr.name.lexeme)
-            .orElse(klass.superclass.flatMap(findMethod))
+      for
+          lit <- evaluate(expr.`obj`)
+          result <- lit match
+              case instance @ Lit.Instance(_, fields) =>
+                fields
+                  .get(expr.name.lexeme)
+                  .orElse(
+                    findMethod(instance.klass, expr.name.lexeme)
+                      .map(fn => Lit.Callable(bindThis(instance, fn)))
+                  )
+                  .toRight(
+                    RuntimeError(
+                      expr.name,
+                      s"Undefined property/method '${expr.name.lexeme}'."
+                    )
+                  )
+              case _ => Left(RuntimeError(expr.name, ""))
+      yield result
 
-        for
-            lit <- evaluate(expr.`obj`)
-            result <- lit match
-                case instance @ Lit.Instance(_, fields) =>
-                  fields
-                    .get(expr.name.lexeme)
-                    .orElse(
-                      findMethod(instance.klass)
-                        .map(fn => Lit.Callable(bindThis(instance, fn)))
-                    )
-                    .toRight(
-                      RuntimeError(
-                        expr.name,
-                        s"Undefined property/method '${expr.name.lexeme}'."
-                      )
-                    )
-                case _ => Left(RuntimeError(expr.name, ""))
-        yield result
+    private def findMethod(klass: Fn.Class, name: String): Option[Fn.Lox] =
+      klass.methods
+        .get(name)
+        .orElse(klass.superclass.flatMap(c => findMethod(c, name)))
 
     private def bindThis(instance: Lit.Instance, fn: Fn.Lox): Fn.Lox =
         val environment = Environment(Some(fn.closure))

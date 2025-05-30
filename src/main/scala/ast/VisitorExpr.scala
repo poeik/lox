@@ -12,6 +12,7 @@ trait VisitorExpr[A]:
     def visitLambda(f:      Expr.Lambda): A
     def visitGet(expr:      Expr.Get): A
     def visitSet(expr:      Expr.Set): A
+    def visitSuper(expr:    Expr.Super): A
     def visitThis(expr:     Expr.This): A
 
 object VisitorExpr {
@@ -27,5 +28,6 @@ object VisitorExpr {
       case expr: Expr.Lambda     => visitor.visitLambda(expr)
       case expr: Expr.Get        => visitor.visitGet(expr)
       case expr: Expr.Set        => visitor.visitSet(expr)
+      case expr: Expr.Super      => visitor.visitSuper(expr)
       case expr: Expr.This       => visitor.visitThis(expr)
 }

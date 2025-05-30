@@ -6,6 +6,14 @@ import token.Token
 
 import scala.collection.mutable
 
+enum Lit:
+  case Nil
+  case Number(value: Double)
+  case Str(value: String)
+  case Bool(value: Boolean)
+  case Callable(fn: Fn)
+  case Instance(klass: Fn.Class, fields: mutable.Map[String, Lit])
+
 enum Fn:
     case Lox(
         body:          List[Stmt],
@@ -26,10 +34,3 @@ enum Fn:
         arity: Int
     )
 
-enum Lit:
-    case Nil
-    case Number(value: Double)
-    case Str(value: String)
-    case Bool(value: Boolean)
-    case Callable(fn: Fn)
-    case Instance(klass: Fn.Class, fields: mutable.Map[String, Lit])

@@ -39,9 +39,15 @@ class Resolver(private val interpreter: Interpreter)
       stmt.superclass
         // check if the class extends itself
         .filter(s => stmt.name.lexeme.equals(s.name.lexeme))
-        .foreach(s => reporting.error(s.name, "A class can't inherit from itself."))
+        .foreach(s =>
+          reporting.error(s.name, "A class can't inherit from itself.")
+        )
 
       stmt.superclass.foreach(resolve)
+      stmt.superclass.foreach { _ =>
+          beginScope()
+          scopes.top.put("super", true)
+      }
 
       beginScope()
 
@@ -54,6 +60,7 @@ class Resolver(private val interpreter: Interpreter)
       )
 
       endScope()
+      stmt.superclass.foreach(_ => endScope())
       currentClass = enclosingClass;
 
   override def visitExpressionStatement(stmt: Stmt.Expression): Unit =
@@ -117,6 +124,9 @@ class Resolver(private val interpreter: Interpreter)
   override def visitSet(expr: Expr.Set): Unit =
       resolve(expr.value)
       resolve(expr.obj)
+
+  override def visitSuper(expr: Expr.Super): Unit =
+    resolveLocal(expr, expr.keyword)
 
   override def visitThis(expr: Expr.This): Unit =
     currentClass match {

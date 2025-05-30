@@ -318,6 +318,12 @@ class Parser(private val tokens: Seq[Token]) {
             val (params, block) = lambda("anonymous function")
             current = current - 1
             Lambda(params, block)
+          case SUPER =>
+            advance()
+            val keyword = previous()
+            consume(DOT, "Expect '.' after 'super'.")
+            val method = satisfies(IDENTIFIER, "Expect superclass method name.")
+            Expr.Super(keyword, method)
           case THIS => This(peek())
           case IDENTIFIER =>
             Variable(peek())

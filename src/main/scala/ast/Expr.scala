@@ -9,6 +9,7 @@ enum Expr:
     case Literal(value: Lit)
     case Unary(operator: Token, right: Expr)
     case Variable(name: Token)
+    case Super(keyword: Token, method: Token)
     case This(keyword: Token)
     case Assignment(name: Token, value: Expr)
     case Logical(left: Expr, operator: Token, right: Expr)

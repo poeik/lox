@@ -1,0 +1,28 @@
+{
+  // A human-readable name shown in VS Code’s Remote Explorer
+  "name": "Scala SDKMan Dev Container",
+
+  // Point to the Dockerfile above
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+
+  // Run as the “vscode” user inside the container
+  "remoteUser": "vscode",
+
+  // Optional: install these extensions automatically
+  "extensions": [
+    "scalameta.metals",
+    "scala-lang.scala"
+  ],
+
+  // Forward sbt/Metals ports if needed (e.g. for debugging)
+  "forwardPorts": [],
+
+  // You can add a post-create command if you want VS Code to, for example,
+  //  - generate a new sbt project, or
+  //  - run “sbt metalsSetup” to initialize Metals
+  // Here we leave it empty; you can uncomment and customize if desired.
+  // "postCreateCommand": "bash -lc \"sbt metalsSetup\""
+}
